@@ -1,0 +1,15 @@
+{
+  "rules": {
+    "files": {
+      ".read": true,
+      ".write": true,
+      "$fileKey": {
+        ".validate": "newData.hasChildren(['name', 'ownerId', 'ownerName', 'ownerColor', 'since'])"
+      }
+    },
+    "saved": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}

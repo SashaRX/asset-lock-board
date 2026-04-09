@@ -1,0 +1,11 @@
+{
+  "name": "asset-lock-board-bot",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "firebase-admin": "^12.7.0"
+  }
+}

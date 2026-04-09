@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.parcel-cache/
+.env
+.env.local
+*.log
+.DS_Store
+bot/node_modules/
