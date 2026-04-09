@@ -182,7 +182,7 @@ export default function App() {
   const hoverClass = "hover:bg-[#383838]";
 
   return (
-    <div className="min-h-screen max-w-[460px] mx-auto relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
+    <div className="min-h-screen relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
       {/* Header */}
       <div className="flex items-center gap-1 px-1.5" style={{height:22,background:"#191919",borderBottom:"1px solid #232323"}}>
         <LkIco size={11}/><span className="flex-1 font-semibold" style={{fontSize:11,color:"#D2D2D2"}}>Asset Lock Board</span>
