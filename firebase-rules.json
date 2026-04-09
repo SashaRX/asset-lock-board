@@ -2,10 +2,7 @@
   "rules": {
     "files": {
       ".read": true,
-      ".write": true,
-      "$fileKey": {
-        ".validate": "newData.hasChildren(['name', 'ownerId', 'ownerName', 'ownerColor', 'since'])"
-      }
+      ".write": true
     },
     "saved": {
       ".read": true,
