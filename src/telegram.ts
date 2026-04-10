@@ -113,7 +113,7 @@ function googleUserToAppUser(u: {uid:string; displayName:string|null; photoURL:s
   return user;
 }
 
-const isTgWebApp = () => !!window.Telegram?.WebApp?.initData;
+const isTgWebApp = () => !!window.Telegram?.WebApp;
 
 export async function loginWithGoogle(): Promise<AppUser | null> {
   if (isTgWebApp()) {
