@@ -63,6 +63,7 @@ export default function App() {
   const [addOpen, setAddOpen] = useState(false);
   const [notif, setNotif] = useState<string|null>(null);
   const [expanded, setExpanded] = useState<Record<number,boolean>>({});
+  const [menuOpen, setMenuOpen] = useState(false);
   const tRef = useRef<ReturnType<typeof setTimeout>>();
 
   /* All hooks BEFORE conditional return */
@@ -140,7 +141,16 @@ export default function App() {
       <div className="flex items-center gap-1 px-1.5" style={{height:22,background:"#191919",borderBottom:"1px solid #232323"}}>
         <LkIco size={11}/><span className="flex-1 font-semibold" style={{fontSize:11,color:"#D2D2D2"}}>Asset Lock Board</span>
         <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"0 4px",borderRadius:3,lineHeight:"14px"}}>{entries.length}</span>
-        <div onClick={()=>{logout();setMe(null);}} className="flex items-center gap-1 cursor-pointer" style={{padding:"0 4px",borderRadius:3,height:16}}><Av user={me} size={14}/><span style={{fontSize:9,color:"#7A7A7A"}}>×</span></div>
+        <div className="relative">
+          <div onClick={()=>setMenuOpen(!menuOpen)} className="flex items-center gap-1 cursor-pointer" style={{padding:"0 4px",borderRadius:3,height:18}}>
+            <Av user={me} size={16}/><span style={{fontSize:10,color:"#D2D2D2",maxWidth:80}} className="truncate">{dn(me.name,me.username)}</span>
+            <svg width={8} height={8} viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="#7A7A7A" strokeWidth="2" strokeLinecap="round"/></svg>
+          </div>
+          {menuOpen&&<div style={{position:"absolute",right:0,top:20,background:"#3F3F3F",border:"1px solid #505050",borderRadius:4,padding:4,zIndex:50,minWidth:120,boxShadow:"0 4px 12px rgba(0,0,0,.4)"}}>
+            <div style={{padding:"4px 8px",fontSize:10,color:"#7A7A7A",borderBottom:"1px solid #505050",marginBottom:2}}>{me.name}{me.username&&<span style={{color:"#585858"}}> @{me.username}</span>}</div>
+            <div onClick={()=>{logout();setMe(null);setMenuOpen(false);}} className="cursor-pointer" style={{padding:"4px 8px",fontSize:11,color:"#D35555",borderRadius:3}} onMouseEnter={e=>(e.currentTarget.style.background="#4A4A4A")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>Log out</div>
+          </div>}
+        </div>
       </div>
       {notif&&<div style={{background:"#2D5A3D",color:"#A8E6A1",fontSize:10,padding:"2px 6px",textAlign:"center"}}>{notif}</div>}
       <div style={{background:"#303030"}}>
