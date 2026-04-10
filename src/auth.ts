@@ -113,10 +113,10 @@ function googleUserToAppUser(u: {uid:string; displayName:string|null; photoURL:s
   return user;
 }
 
-const isTgWebApp = () =>
-  !!(window as any).TelegramWebviewProxy ||
-  !!window.Telegram?.WebApp?.initData ||
-  /telegram/i.test(navigator.userAgent);
+/* True only in genuine Telegram Mini App (initData is non-empty).
+   Telegram Desktop in-app browser: initData="", Google popup works (with COOP warning).
+   Regular browser: telegram-web-app.js from <head> creates WebApp but initData="" too. */
+const isTgWebApp = () => !!window.Telegram?.WebApp?.initData;
 
 export { isTgWebApp };
 
