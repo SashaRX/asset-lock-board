@@ -301,11 +301,36 @@ bot.on('text', async (ctx) => {
 let previousFiles = {};
 onValue(ref(db, 'files'), async (snap) => {
   const current = snap.val() || {};
+
+  // Freed files -> notify watchers
   for (const [key, prev] of Object.entries(previousFiles)) {
     if (!current[key]) {
-      await notifyWatchers(prev);
+      for (const wId of Object.keys(prev.watchers || {})) {
+        bot.telegram.sendMessage(wId,
+          `\u{1F513} *${prev.name}* \u0441\u0432\u043e\u0431\u043e\u0434\u0435\u043d! (\u0431\u044b\u043b: ${prev.ownerName})`,
+          { parse_mode: 'Markdown' }
+        ).catch(() => {});
+      }
     }
   }
+
+  // New watchers -> notify owner
+  for (const [key, cur] of Object.entries(current)) {
+    const prev = previousFiles[key];
+    if (prev) {
+      const prevW = Object.keys(prev.watchers || {});
+      const curW = Object.keys(cur.watchers || {});
+      const added = curW.filter(w => !prevW.includes(w));
+      for (const wId of added) {
+        const wName = cur.watchers[wId]?.name || 'Someone';
+        bot.telegram.sendMessage(cur.ownerId,
+          `\u{1F514} *${wName}* \u043e\u0436\u0438\u0434\u0430\u0435\u0442 \u0444\u0430\u0439\u043b *${cur.name}*`,
+          { parse_mode: 'Markdown' }
+        ).catch(() => {});
+      }
+    }
+  }
+
   previousFiles = JSON.parse(JSON.stringify(current));
   await updateAllBoards();
 });
