@@ -7,7 +7,7 @@ require('dotenv').config();
 
 const { Telegraf } = require('telegraf');
 const { initializeApp } = require('firebase/app');
-const { getDatabase, ref, onValue, set, remove, get } = require('firebase/database');
+const { getDatabase, ref, onValue, set, remove, get, update: fbUpdate } = require('firebase/database');
 const fs = require('fs');
 const path = require('path');
 
@@ -137,6 +137,44 @@ async function updateAllBoards() {
 // --- Commands ---
 
 bot.command('start', async (ctx) => {
+  const args = ctx.message.text.split(' ').slice(1).join(' ');
+
+  // Handle account linking: /start link_{oldId}
+  if (args.startsWith('link_')) {
+    const oldId = Number(args.replace('link_', ''));
+    const newId = ctx.from.id;
+    if (oldId && oldId !== newId) {
+      try {
+        const filesSnap = await get(ref(db, 'files'));
+        const files = filesSnap.val() || {};
+        const ups = {};
+        for (const [k, f] of Object.entries(files)) {
+          if (f.ownerId === oldId) {
+            ups[`files/${k}/ownerId`] = newId;
+            ups[`files/${k}/ownerName`] = userName(ctx.from);
+            ups[`files/${k}/ownerUsername`] = ctx.from.username || '';
+            ups[`files/${k}/ownerColor`] = colorForId(newId);
+          }
+          if (f.watchers && f.watchers[oldId]) {
+            ups[`files/${k}/watchers/${newId}`] = f.watchers[oldId];
+            ups[`files/${k}/watchers/${oldId}`] = null;
+          }
+        }
+        const oldSnap = await get(ref(db, `users/${oldId}`));
+        const oldProfile = oldSnap.val() || {};
+        ups[`users/${newId}`] = { ...oldProfile, name: userName(ctx.from), username: ctx.from.username || '', color: colorForId(newId) };
+        ups[`users/${oldId}`] = null;
+        await fbUpdate(ref(db), ups);
+        console.log(`Linked: ${oldId} -> ${newId} (${userName(ctx.from)})`);
+        return ctx.reply('\u2705 Account linked! You can close this and return to the app.');
+      } catch (e) {
+        console.error('Link error:', e.message);
+        return ctx.reply('\u274C Link failed: ' + e.message);
+      }
+    }
+    return ctx.reply('\u2705 Already linked!');
+  }
+
   syncUserProfile(ctx).then(() => console.log('Profile synced:', ctx.from.id)).catch(e => console.error('Profile sync error:', e.message));
 
   const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';

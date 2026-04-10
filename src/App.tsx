@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, ref, onValue, set, remove, update } from './firebase';
-import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, loginSimple, checkGoogleRedirect, isTgWebApp, logout, type AppUser, type TelegramLoginUser } from './auth';
+import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, loginSimple, linkTelegram, linkGoogle, checkGoogleRedirect, isTgWebApp, logout, type AppUser, type TelegramLoginUser } from './auth';
 import { getIconSrc, getExt } from './icons';
 
 /* Unity Editor dark theme palette */
@@ -270,6 +270,18 @@ export default function App() {
             <div style={{padding:"4px 10px",fontSize:10,color:"#7A7A7A",marginBottom:2}}>Notifications</div>
             {(['both','browser','telegram','off'] as const).map(p=><div key={p} onClick={()=>{setNotifyPref(p);localStorage.setItem('alb_notify',p);update(ref(db),{[`users/${me.id}/notifyPref`]:p});}} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:notifyPref===p?"#7BAEFA":"#D2D2D2",borderRadius:3,background:notifyPref===p?"#46607C":"transparent"}} onMouseEnter={e=>{if(notifyPref!==p)e.currentTarget.style.background="#4A4A4A"}} onMouseLeave={e=>{if(notifyPref!==p)e.currentTarget.style.background="transparent"}}><span style={{width:14,textAlign:'center'}}>{notifyPref===p?'●':'○'}</span>{{both:'Browser + Telegram',browser:'Browser only',telegram:'Telegram only',off:'Off'}[p]}</div>)}
             <div style={{borderTop:"1px solid #505050",marginTop:4,paddingTop:4}}/>
+            {me.id>1e12&&<>
+              <div style={{padding:"4px 10px",fontSize:10,color:"#7A7A7A",marginBottom:2}}>Connect account</div>
+              <div onClick={async()=>{const u=await linkGoogle(me);if(u)setMe(u);}} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:"#D2D2D2",borderRadius:3}} onMouseEnter={e=>e.currentTarget.style.background="#4A4A4A"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <svg width={12} height={12} viewBox="0 0 48 48"><path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill="#888"/></svg>
+                Google
+              </div>
+              <div onClick={()=>window.open(`https://t.me/asset_lock_board_bot?start=link_${me.id}`,'_blank')} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:"#D2D2D2",borderRadius:3}} onMouseEnter={e=>e.currentTarget.style.background="#4A4A4A"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <svg width={12} height={12} viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.66-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.74 3.98-1.73 6.63-2.87 7.97-3.44 3.8-1.58 4.59-1.86 5.1-1.87.11 0 .37.03.54.17.14.12.18.28.2.47-.01.06.01.24 0 .38z" fill="#888"/></svg>
+                Telegram
+              </div>
+              <div style={{borderTop:"1px solid #505050",marginTop:4,paddingTop:4}}/>
+            </>}
             <div onClick={()=>{logout();setMe(null);setMenuOpen(false);}} className="cursor-pointer" style={{padding:"6px 10px",fontSize:11,color:"#D35555",borderRadius:4}} onMouseEnter={e=>(e.currentTarget.style.background="#4A4A4A")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>Log out</div>
           </div></>}
         </div>

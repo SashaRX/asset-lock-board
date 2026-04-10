@@ -1,4 +1,4 @@
-import { auth, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from './firebase';
+import { auth, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult, db, ref, get, update } from './firebase';
 
 declare global {
   interface Window {
@@ -106,6 +106,56 @@ export function loginSimple(name: string): AppUser {
   const user: AppUser = { id, name: name.trim(), color: colorForId(id) };
   localStorage.setItem('alb_user', JSON.stringify(user));
   return user;
+}
+
+/* Migrate all Firebase records from oldId to newId */
+async function migrateUserId(oldId: number, newId: number, merged: Record<string, unknown>): Promise<void> {
+  const snap = await get(ref(db, 'files'));
+  const files = snap.val() || {};
+  const ups: Record<string, unknown> = {};
+  for (const [k, f] of Object.entries(files) as [string, any][]) {
+    if (f.ownerId === oldId) {
+      ups[`files/${k}/ownerId`] = newId;
+      if (merged.name) ups[`files/${k}/ownerName`] = merged.name;
+      if (merged.username) ups[`files/${k}/ownerUsername`] = merged.username;
+      if (merged.color) ups[`files/${k}/ownerColor`] = merged.color;
+    }
+    if (f.watchers?.[oldId]) {
+      ups[`files/${k}/watchers/${newId}`] = f.watchers[oldId];
+      ups[`files/${k}/watchers/${oldId}`] = null;
+    }
+  }
+  const oldSnap = await get(ref(db, `users/${oldId}`));
+  const oldProfile = oldSnap.val() || {};
+  ups[`users/${newId}`] = { ...oldProfile, ...merged };
+  ups[`users/${oldId}`] = null;
+  await update(ref(db), ups);
+}
+
+export async function linkTelegram(current: AppUser, tgUser: TelegramLoginUser): Promise<AppUser> {
+  const newId = tgUser.id;
+  if (newId === current.id) return current;
+  const name = tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name[0] + '.' : '');
+  const merged = { name, username: tgUser.username || '', color: colorForId(newId) };
+  await migrateUserId(current.id, newId, merged);
+  const user: AppUser = { id: newId, name, username: tgUser.username, color: merged.color };
+  localStorage.setItem('alb_user', JSON.stringify(user));
+  return user;
+}
+
+export async function linkGoogle(current: AppUser): Promise<AppUser | null> {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const u = result.user;
+    const numId = Math.abs([...u.uid].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0));
+    // If already same id, just update profile
+    if (numId === current.id) return current;
+    const merged = { name: u.displayName || current.name, color: colorForId(numId), photo: u.photoURL || undefined };
+    await migrateUserId(current.id, numId, merged);
+    const user: AppUser = { id: numId, name: merged.name, color: merged.color, photo: merged.photo };
+    localStorage.setItem('alb_user', JSON.stringify(user));
+    return user;
+  } catch { return null; }
 }
 
 function googleUserToAppUser(u: {uid:string; displayName:string|null; photoURL:string|null}): AppUser {
