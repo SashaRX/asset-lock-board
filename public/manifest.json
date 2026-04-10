@@ -1,0 +1,17 @@
+{
+  "name": "Asset Lock Board",
+  "short_name": "Lock Board",
+  "start_url": "/asset-lock-board/",
+  "scope": "/asset-lock-board/",
+  "display": "standalone",
+  "background_color": "#282828",
+  "theme_color": "#191919",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
