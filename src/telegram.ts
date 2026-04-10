@@ -23,13 +23,26 @@ declare global {
         };
       };
     };
+    onTelegramAuth?: (user: TelegramLoginUser) => void;
   }
+}
+
+export interface TelegramLoginUser {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
 }
 
 export interface AppUser {
   id: number;
   name: string;
+  username?: string;
   color: string;
+  photo?: string;
 }
 
 const COLORS = [
@@ -45,33 +58,44 @@ export function initTelegram() {
   const tg = window.Telegram?.WebApp;
   if (tg) {
     tg.ready();
-
-    // Match Telegram chrome to our dark theme
     try { tg.setHeaderColor?.('#191919'); } catch {}
     try { tg.setBackgroundColor?.('#282828'); } catch {}
     try { tg.setBottomBarColor?.('#282828'); } catch {}
   }
 }
 
-export function getUser(): AppUser {
+export function getUser(): AppUser | null {
   const tg = window.Telegram?.WebApp;
   const u = tg?.initDataUnsafe?.user;
-
   if (u) {
     return {
       id: u.id,
       name: u.first_name + (u.last_name ? ' ' + u.last_name[0] + '.' : ''),
+      username: u.username,
       color: colorForId(u.id),
     };
   }
+  try {
+    const saved = localStorage.getItem('alb_user');
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return null;
+}
 
-  const debugName = !window.Telegram ? 'NO_TG_OBJ'
-    : !tg ? 'NO_WEBAPP'
-    : !tg.initDataUnsafe ? 'NO_INITDATA'
-    : !tg.initDataUnsafe.user ? `NO_USER(initData=${tg.initData?.substring(0,20) || 'empty'})`
-    : 'UNKNOWN';
+export function loginWithTelegram(tgUser: TelegramLoginUser): AppUser {
+  const user: AppUser = {
+    id: tgUser.id,
+    name: tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name[0] + '.' : ''),
+    username: tgUser.username,
+    color: colorForId(tgUser.id),
+    photo: tgUser.photo_url,
+  };
+  localStorage.setItem('alb_user', JSON.stringify(user));
+  return user;
+}
 
-  return { id: 999, name: debugName, color: '#58B258' };
+export function logout() {
+  localStorage.removeItem('alb_user');
 }
 
 export function haptic(type: 'light' | 'medium' | 'heavy' = 'light') {

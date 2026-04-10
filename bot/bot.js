@@ -55,7 +55,6 @@ function boardKeyboard() {
       { text: '\u{1F513} Free', callback_data: 'b_free' },
       { text: '\u{1F504}', callback_data: 'b_refresh' },
     ],
-    [{ text: '\u{1F4F1} Mini App', web_app: { url: WEBAPP_URL } }],
   ]};
 }
 
@@ -83,13 +82,18 @@ async function updateAllBoards() {
 // --- Commands ---
 
 bot.command('start', (ctx) => {
+  const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
+  const markup = isGroup
+    ? undefined
+    : { reply_markup: { inline_keyboard: [[{ text: '\u{1F512} Open Mini App', web_app: { url: WEBAPP_URL } }]] } };
+
   ctx.reply(
     'Asset Lock Board\n\n' +
     '/board \u2014 create board in chat\n' +
     '/lock filename \u2014 lock a file\n' +
     '/free filename \u2014 free a file\n' +
     '/status \u2014 text status',
-    { reply_markup: { inline_keyboard: [[{ text: '\u{1F512} Open Mini App', web_app: { url: WEBAPP_URL } }]] } }
+    markup || {}
   );
 });
 
@@ -254,7 +258,6 @@ bot.on('text', async (ctx) => {
 let previousFiles = {};
 onValue(ref(db, 'files'), async (snap) => {
   const current = snap.val() || {};
-  // Notify watchers for files freed via Mini App
   for (const [key, prev] of Object.entries(previousFiles)) {
     if (!current[key]) {
       await notifyWatchers(prev);

@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, ref, onValue, set, remove, update, get } from './firebase';
-import { getUser, initTelegram, haptic, hapticNotify, type AppUser } from './telegram';
+import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, type AppUser, type TelegramLoginUser } from './telegram';
 import { getIconSrc, getExt } from './icons';
 
 /* ─── Firebase key encoding (dots not allowed in keys) ─── */
 const toKey = (s: string) => s.replace(/\./g, '~');
-const fromKey = (s: string) => s.replace(/~/g, '.');
 
 /* ─── Types ─── */
 interface FileData {
   name: string;
   ownerId: number;
   ownerName: string;
+  ownerUsername?: string;
   ownerColor: string;
   watchers: Record<string, { name: string; color: string }>;
   since: number;
@@ -38,9 +38,42 @@ function Chev({open}:{open:boolean}) {
 }
 function fmt(ts:number){const d=new Date(ts);return d.getHours().toString().padStart(2,"0")+":"+d.getMinutes().toString().padStart(2,"0");}
 
+/* ─── Display name: prefer @username ─── */
+function dn(name: string, username?: string): string {
+  return username ? `@${username}` : name;
+}
+
+/* ─── Login Screen ─── */
+function LoginScreen({ onLogin }: { onLogin: (u: AppUser) => void }) {
+  const wRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    (window as any).onTelegramAuth = (tgUser: TelegramLoginUser) => {
+      onLogin(loginWithTelegram(tgUser));
+    };
+    if (wRef.current && !wRef.current.querySelector('script')) {
+      const s = document.createElement('script');
+      s.src = 'https://telegram.org/js/telegram-widget.js?22';
+      s.setAttribute('data-telegram-login', 'asset_lock_board_bot');
+      s.setAttribute('data-size', 'large');
+      s.setAttribute('data-onauth', 'onTelegramAuth(user)');
+      s.setAttribute('data-request-access', 'write');
+      s.async = true;
+      wRef.current.appendChild(s);
+    }
+  }, [onLogin]);
+  return (
+    <div style={{minHeight:'100vh',background:'#282828',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:"Inter,'Segoe UI',system-ui,sans-serif",gap:16}}>
+      <LkIco size={24}/>
+      <div style={{fontSize:14,color:'#D2D2D2',fontWeight:600}}>Asset Lock Board</div>
+      <div style={{fontSize:11,color:'#7A7A7A'}}>Log in with Telegram</div>
+      <div ref={wRef} style={{marginTop:8}}/>
+    </div>
+  );
+}
+
 /* ─── Main App ─── */
 export default function App() {
-  const [me] = useState<AppUser>(getUser);
+  const [me, setMe] = useState<AppUser | null>(getUser);
   const [files, setFiles] = useState<FilesMap>({});
   const [saved, setSaved] = useState<string[]>([]);
   const [input, setInput] = useState('');
@@ -50,6 +83,9 @@ export default function App() {
   const [expanded, setExpanded] = useState<Record<number,boolean>>({});
   const tRef = useRef<ReturnType<typeof setTimeout>>();
 
+  /* ─── Login gate ─── */
+  if (!me) return <LoginScreen onLogin={setMe} />;
+
   const flash = useCallback((m: string) => {
     setNotif(m); clearTimeout(tRef.current);
     tRef.current = setTimeout(() => setNotif(null), 2500);
@@ -58,53 +94,33 @@ export default function App() {
   /* ─── Firebase listeners ─── */
   useEffect(() => {
     initTelegram();
-    const filesRef = ref(db, 'files');
-    const savedRef = ref(db, 'saved');
-
-    const unsubFiles = onValue(filesRef, snap => {
-      const data = snap.val() || {};
-      setFiles(data as FilesMap);
-    });
-
-    const unsubSaved = onValue(savedRef, snap => {
-      const data = snap.val() || {};
-      setSaved(Object.values(data) as string[]);
-    });
-
+    const unsubFiles = onValue(ref(db, 'files'), snap => setFiles((snap.val() || {}) as FilesMap));
+    const unsubSaved = onValue(ref(db, 'saved'), snap => setSaved(Object.values(snap.val() || {}) as string[]));
     return () => { unsubFiles(); unsubSaved(); };
   }, []);
 
-  /* ─── Actions (write to Firebase) ─── */
+  /* ─── Actions ─── */
   const addFiles = async (names: string[]) => {
     const updates: Record<string, any> = {};
     let locked: string[] = [], taken: string[] = [];
-
     for (const n of names) {
       const k = toKey(n);
-      // Save to saved list
       updates[`saved/${k}`] = n;
-
       const existing = files[k];
       if (existing) {
         if (existing.ownerId !== me.id) {
-          // File locked — subscribe as watcher
           updates[`files/${k}/watchers/${me.id}`] = { name: me.name, color: me.color };
           locked.push(n);
         }
       } else {
-        // File free — take it
         updates[`files/${k}`] = {
-          name: n,
-          ownerId: me.id,
-          ownerName: me.name,
-          ownerColor: me.color,
-          watchers: {},
-          since: Date.now(),
+          name: n, ownerId: me.id, ownerName: me.name,
+          ownerUsername: me.username || '', ownerColor: me.color,
+          watchers: {}, since: Date.now(),
         };
         taken.push(n);
       }
     }
-
     await update(ref(db), updates);
     setSel(new Set()); setInput('');
     const msgs: string[] = [];
@@ -121,44 +137,30 @@ export default function App() {
   };
 
   const freeFile = async (n: string) => {
-    const k = toKey(n);
-    const f = files[k];
-    if (!f) return;
-    // Notify watchers will happen via bot webhook
+    const k = toKey(n); if (!files[k]) return;
     await remove(ref(db, `files/${k}`));
-    flash(n + ' free');
-    hapticNotify('success');
+    flash(n + ' free'); hapticNotify('success');
   };
 
   const freeAll = async () => {
     const updates: Record<string, null> = {};
-    Object.entries(files).forEach(([k, f]) => {
-      if (f.ownerId === me.id) updates[`files/${k}`] = null;
-    });
+    Object.entries(files).forEach(([k, f]) => { if (f.ownerId === me.id) updates[`files/${k}`] = null; });
     await update(ref(db), updates);
-    flash('All freed');
-    hapticNotify('success');
+    flash('All freed'); hapticNotify('success');
   };
 
   const toggleWatch = async (n: string) => {
-    const k = toKey(n);
-    const f = files[k];
+    const k = toKey(n); const f = files[k];
     if (!f || f.ownerId === me.id) return;
-    const watcherRef = ref(db, `files/${k}/watchers/${me.id}`);
-    if (f.watchers?.[me.id]) {
-      await remove(watcherRef);
-    } else {
-      await set(watcherRef, { name: me.name, color: me.color });
-    }
+    const wr = ref(db, `files/${k}/watchers/${me.id}`);
+    if (f.watchers?.[me.id]) await remove(wr);
+    else await set(wr, { name: me.name, color: me.color });
     haptic('light');
   };
 
   const isW = (k: string) => !!files[k]?.watchers?.[me.id];
   const togSel = (n: string) => setSel(p => { const s = new Set(p); s.has(n) ? s.delete(n) : s.add(n); return s; });
-  const rmSaved = async (n: string) => {
-    await remove(ref(db, `saved/${toKey(n)}`));
-    setSel(p => { const s = new Set(p); s.delete(n); return s; });
-  };
+  const rmSaved = async (n: string) => { await remove(ref(db, `saved/${toKey(n)}`)); setSel(p => { const s = new Set(p); s.delete(n); return s; }); };
   const togExp = (id: number) => setExpanded(p => ({...p, [id]: !p[id]}));
 
   /* ─── Computed ─── */
@@ -169,11 +171,10 @@ export default function App() {
   const typed = input.split(/[,;\n]+/).map(s => s.trim()).filter(s => s && s.includes('.'));
   const hasAny = typed.length > 0 || sel.size > 0;
 
-  // Group others by owner
-  const grouped: Record<number, { owner: { id: number; name: string; color: string }; files: [string, FileData][] }> = {};
+  const grouped: Record<number, { owner: { id: number; name: string; username?: string; color: string }; files: [string, FileData][] }> = {};
   others.forEach(([k, f]) => {
     const id = f.ownerId;
-    if (!grouped[id]) grouped[id] = { owner: { id, name: f.ownerName, color: f.ownerColor }, files: [] };
+    if (!grouped[id]) grouped[id] = { owner: { id, name: f.ownerName, username: f.ownerUsername, color: f.ownerColor }, files: [] };
     grouped[id].files.push([k, f]);
   });
   const groups = Object.values(grouped).sort((a, b) => b.files.length - a.files.length);
@@ -211,7 +212,7 @@ export default function App() {
           {ghosts.map(([k,f],i) => <div key={k} className={rowStyle} style={{gridTemplateColumns:"14px 18px 1fr 20px 18px 38px",height:18,padding:"0 6px",columnGap:3,opacity:.45,background:(mine.length+i)%2?"#383838":"transparent"}}>
             <LkIco size={11}/><FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:"#EEE"}}>{f.name}</span>
             <div className="flex justify-center"><BellIco active onClick={() => toggleWatch(f.name)} size={13}/></div>
-            <Av user={{name:f.ownerName,color:f.ownerColor}} size={15}/><span className="truncate" style={{fontSize:10,color:f.ownerColor,fontWeight:600}}>{f.ownerName}</span>
+            <Av user={{name:f.ownerName,color:f.ownerColor}} size={15}/><span className="truncate" style={{fontSize:10,color:f.ownerColor,fontWeight:600}}>{dn(f.ownerName, f.ownerUsername)}</span>
           </div>)}
         </>}
 
@@ -225,7 +226,7 @@ export default function App() {
           <textarea rows={2} placeholder="Level_05.unity, Rock.prefab" value={input} onChange={e => setInput(e.target.value)} style={{width:"100%",boxSizing:"border-box",padding:"4px 6px",background:"#3F3F3F",border:"1px solid #232323",borderRadius:3,color:"#D2D2D2",fontSize:11,fontFamily:"Consolas,monospace",resize:"none",outline:"none",lineHeight:"16px"}}/>
           {typed.length > 0 && <div style={{marginTop:2}}>{typed.map((n,i) => {
             const k = toKey(n); const b = files[k] && files[k].ownerId !== me.id; const m = files[k] && files[k].ownerId === me.id;
-            return <div key={i} className="flex items-center gap-1" style={{height:18}}><FIcon ext={getExt(n)} size={14}/><span className="flex-1" style={{fontSize:11,color:b?"#E8A04C":m?"#58B258":"#D2D2D2"}}>{n}</span>{b && <><BellIco active size={12}/><span style={{fontSize:9,color:"#E8A04C",fontWeight:600}}>{files[k].ownerName}</span></>}{m && <span style={{fontSize:9,color:"#58B258"}}>yours</span>}</div>;
+            return <div key={i} className="flex items-center gap-1" style={{height:18}}><FIcon ext={getExt(n)} size={14}/><span className="flex-1" style={{fontSize:11,color:b?"#E8A04C":m?"#58B258":"#D2D2D2"}}>{n}</span>{b && <><BellIco active size={12}/><span style={{fontSize:9,color:"#E8A04C",fontWeight:600}}>{dn(files[k].ownerName, files[k].ownerUsername)}</span></>}{m && <span style={{fontSize:9,color:"#58B258"}}>yours</span>}</div>;
           })}</div>}
           <div style={{fontSize:9,fontWeight:600,color:"#7A7A7A",textTransform:"uppercase",marginTop:4,marginBottom:2}}>Saved</div>
           <div className="flex flex-wrap gap-0.5">{saved.map(n => {
@@ -250,7 +251,7 @@ export default function App() {
               <span style={{fontSize:10,color:"#7A7A7A"}}>{g.files.length}</span>
               {more && <Chev open={isExp}/>}
               <div className="flex-1"/>
-              <span className="font-semibold" style={{fontSize:11,color:g.owner.color}}>{g.owner.name}</span>
+              <span className="font-semibold" style={{fontSize:11,color:g.owner.color}}>{dn(g.owner.name, g.owner.username)}</span>
               <Av user={g.owner} size={18}/>
             </div>
             {vis.map(([k,f],i) => <div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"13px 16px 1fr 20px",height:18,padding:"0 4px 0 14px",columnGap:3,background:i%2?"#383838":"transparent"}}>
