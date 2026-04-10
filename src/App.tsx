@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, ref, onValue, set, remove, update } from './firebase';
-import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, checkGoogleRedirect, logout, type AppUser, type TelegramLoginUser } from './auth';
+import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, isTgWebApp, logout, type AppUser, type TelegramLoginUser } from './auth';
 import { getIconSrc, getExt } from './icons';
 
 /* Unity Editor dark theme palette */
@@ -76,17 +76,20 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
   }, [onLogin]);
   const handleGoogle = async () => {
     setGLoading(true);
-    try { const u = await loginWithGoogle(); if (u) onLogin(u); } catch(e) { console.error(e); setGLoading(false); }
+    try { onLogin(await loginWithGoogle()); } catch(e) { console.error(e); setGLoading(false); }
   };
+  const inTg = isTgWebApp();
   return (
     <div style={{minHeight:'100vh',background:'#282828',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:"Inter,'Segoe UI',system-ui,sans-serif",gap:12}}>
       <svg width={40} height={40} viewBox="0 0 32 32"><rect x="4" y="6" width="16" height="20" rx="2" fill="#4A90D9" opacity=".35"/><rect x="8" y="3" width="16" height="20" rx="2" fill="#4A90D9" opacity=".6"/><rect x="12" y="0" width="16" height="20" rx="2" fill="#4A90D9"/><rect x="17" y="8" width="6" height="5" rx="1" fill="#282828"/><path d="M19 8V6.5a1.5 1.5 0 013 0V8" fill="none" stroke="#282828" strokeWidth="1.2" strokeLinecap="round"/></svg>
       <div style={{fontSize:16,color:'#D2D2D2',fontWeight:600,marginBottom:8}}>Asset Lock Board</div>
-      <button onClick={handleGoogle} disabled={gLoading} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,width:250,height:40,borderRadius:20,border:'none',background:'#4285F4',color:'#fff',fontSize:14,fontWeight:500,cursor:gLoading?'wait':'pointer',boxShadow:'0 2px 8px rgba(0,0,0,.3)'}}>
-        <svg width={20} height={20} viewBox="0 0 48 48"><path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill="#fff" fillOpacity=".3"/><path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill="none" stroke="#fff" strokeWidth=".5" strokeOpacity=".2"/></svg>
-        {gLoading?'Signing in...':'Sign in with Google'}
-      </button>
-      <div style={{display:'flex',alignItems:'center',gap:8,width:250,margin:'4px 0'}}><div style={{flex:1,borderTop:'1px solid #3F3F3F'}}/><span style={{fontSize:10,color:'#585858'}}>or</span><div style={{flex:1,borderTop:'1px solid #3F3F3F'}}/></div>
+      {!inTg && <>
+        <button onClick={handleGoogle} disabled={gLoading} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:10,width:250,height:40,borderRadius:20,border:'none',background:'#4285F4',color:'#fff',fontSize:14,fontWeight:500,cursor:gLoading?'wait':'pointer',boxShadow:'0 2px 8px rgba(0,0,0,.3)'}}>
+          <svg width={20} height={20} viewBox="0 0 48 48"><path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill="#fff" fillOpacity=".3"/><path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill="none" stroke="#fff" strokeWidth=".5" strokeOpacity=".2"/></svg>
+          {gLoading?'Signing in...':'Sign in with Google'}
+        </button>
+        <div style={{display:'flex',alignItems:'center',gap:8,width:250,margin:'4px 0'}}><div style={{flex:1,borderTop:'1px solid #3F3F3F'}}/><span style={{fontSize:10,color:'#585858'}}>or</span><div style={{flex:1,borderTop:'1px solid #3F3F3F'}}/></div>
+      </>}
       <div ref={wRef}/>
     </div>
   );
@@ -106,10 +109,6 @@ export default function App() {
   const tRef = useRef<ReturnType<typeof setTimeout>>();
 
   /* All hooks BEFORE conditional return */
-  useEffect(() => {
-    if (!me) { checkGoogleRedirect().then(u => { if (u) setMe(u); }); }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   const flash = useCallback((m: string) => {
     setNotif(m); clearTimeout(tRef.current);
     tRef.current = setTimeout(() => setNotif(null), 2500);
