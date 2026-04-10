@@ -109,7 +109,7 @@ async function updateAllBoards() {
 // --- Commands ---
 
 bot.command('start', async (ctx) => {
-  syncUserProfile(ctx).catch(() => {});
+  syncUserProfile(ctx).then(() => console.log('Profile synced:', ctx.from.id)).catch(e => console.error('Profile sync error:', e.message));
 
   const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
   const markup = isGroup

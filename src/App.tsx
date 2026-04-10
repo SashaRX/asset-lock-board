@@ -93,7 +93,9 @@ export default function App() {
     // Read back (bot may have saved a working photo URL)
     const unsub = onValue(userRef, snap => {
       const data = snap.val();
+      console.log('[ALB] Firebase user profile:', JSON.stringify(data));
       if (data?.photo && data.photo !== me.photo) {
+        console.log('[ALB] Got photo from bot:', data.photo);
         const updated = { ...me, photo: data.photo };
         setMe(updated);
         localStorage.setItem('alb_user', JSON.stringify(updated));
