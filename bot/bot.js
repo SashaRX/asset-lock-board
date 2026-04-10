@@ -299,6 +299,28 @@ bot.on('text', async (ctx) => {
 // --- Firebase watcher: auto-update boards + notify ---
 
 let previousFiles = {};
+let notifyQueue = {};      // userId -> [{type, text}]
+let notifyTimer = null;
+const DEBOUNCE_MS = 2000;
+
+function queueNotify(userId, text) {
+  if (!notifyQueue[userId]) notifyQueue[userId] = [];
+  if (!notifyQueue[userId].includes(text)) notifyQueue[userId].push(text);
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(flushNotify, DEBOUNCE_MS);
+}
+
+function flushNotify() {
+  for (const [userId, lines] of Object.entries(notifyQueue)) {
+    bot.telegram.sendMessage(userId, lines.join('\n'), { parse_mode: 'Markdown' }).catch(() => {});
+  }
+  notifyQueue = {};
+}
+
+function shortName(file) {
+  return file.ownerUsername ? '@' + file.ownerUsername : file.ownerName;
+}
+
 onValue(ref(db, 'files'), async (snap) => {
   const current = snap.val() || {};
 
@@ -306,10 +328,7 @@ onValue(ref(db, 'files'), async (snap) => {
   for (const [key, prev] of Object.entries(previousFiles)) {
     if (!current[key]) {
       for (const wId of Object.keys(prev.watchers || {})) {
-        bot.telegram.sendMessage(wId,
-          `\u{1F513} *${prev.name}* \u0441\u0432\u043e\u0431\u043e\u0434\u0435\u043d! (\u0431\u044b\u043b: ${prev.ownerName})`,
-          { parse_mode: 'Markdown' }
-        ).catch(() => {});
+        queueNotify(wId, `\u{1F513} *${prev.name}* \u0441\u0432\u043e\u0431\u043e\u0434\u0435\u043d`);
       }
     }
   }
@@ -323,10 +342,7 @@ onValue(ref(db, 'files'), async (snap) => {
       const added = curW.filter(w => !prevW.includes(w));
       for (const wId of added) {
         const wName = cur.watchers[wId]?.name || 'Someone';
-        bot.telegram.sendMessage(cur.ownerId,
-          `\u{1F514} *${wName}* \u043e\u0436\u0438\u0434\u0430\u0435\u0442 \u0444\u0430\u0439\u043b *${cur.name}*`,
-          { parse_mode: 'Markdown' }
-        ).catch(() => {});
+        queueNotify(cur.ownerId, `\u{1F514} *${wName}* \u043e\u0436\u0438\u0434\u0430\u0435\u0442 *${cur.name}*`);
       }
     }
   }
