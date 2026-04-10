@@ -3,7 +3,8 @@ import { db, ref, onValue, set, remove, update } from './firebase';
 import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, logout, type AppUser, type TelegramLoginUser } from './telegram';
 import { getIconSrc, getExt } from './icons';
 
-const toKey = (s: string) => s.replace(/\./g, '~');
+const toKey = (s: string) => String(s).replace(/\./g, '~');
+const toName = (s: string) => { const parts = s.replace(/\\/g, '/').split('/'); return parts[parts.length - 1] || parts[parts.length - 2] || s; };
 
 interface FileData {
   name: string; ownerId: number; ownerName: string; ownerUsername?: string;
@@ -135,7 +136,7 @@ export default function App() {
     setAddOpen(false);
   };
 
-  const submit = () => { const fi = input.split(/[,;\n]+/).map(s=>s.trim()).filter(s=>s&&s.includes('.')); const all = [...new Set([...fi,...sel])]; if (all.length) addFiles(all); };
+  const submit = () => { const fi = input.split(/[,;\n]+/).map(s=>toName(s.trim())).filter(s=>s); const all = [...new Set([...fi,...sel])]; if (all.length) addFiles(all); };
   const freeFile = async (n:string) => { const k=toKey(n); if(!files[k])return; await remove(ref(db,`files/${k}`)); flash(n+' free'); hapticNotify('success'); };
   const freeAll = async () => { const u:Record<string,null>={}; Object.entries(files).forEach(([k,f])=>{if(f.ownerId===me.id)u[`files/${k}`]=null;}); await update(ref(db),u); flash('All freed'); hapticNotify('success'); };
   const toggleWatch = async (n:string) => { const k=toKey(n);const f=files[k]; if(!f||f.ownerId===me.id)return; const wr=ref(db,`files/${k}/watchers/${me.id}`); if(f.watchers?.[me.id])await remove(wr); else await set(wr,{name:me.name,color:me.color}); haptic('light'); };
@@ -172,7 +173,7 @@ export default function App() {
   const mine = entries.filter(([,f])=>f.ownerId===me.id);
   const ghosts = entries.filter(([,f])=>f.ownerId!==me.id&&!!f.watchers?.[me.id]);
   const others = entries.filter(([,f])=>f.ownerId!==me.id);
-  const typed = input.split(/[,;\n]+/).map(s=>s.trim()).filter(s=>s&&s.includes('.'));
+  const typed = input.split(/[,;\n]+/).map(s=>toName(s.trim())).filter(s=>s);
   const hasAny = typed.length>0||sel.size>0;
 
   const grouped:Record<number,{owner:{id:number;name:string;username?:string;color:string};files:[string,FileData][]}> = {};
