@@ -14,8 +14,6 @@ declare global {
         ready: () => void;
         expand: () => void;
         close: () => void;
-        requestFullscreen?: () => void;
-        isFullscreen?: boolean;
         setHeaderColor?: (color: string) => void;
         setBackgroundColor?: (color: string) => void;
         setBottomBarColor?: (color: string) => void;
@@ -47,15 +45,11 @@ export function initTelegram() {
   const tg = window.Telegram?.WebApp;
   if (tg) {
     tg.ready();
-    tg.expand();
 
     // Match Telegram chrome to our dark theme
     try { tg.setHeaderColor?.('#191919'); } catch {}
     try { tg.setBackgroundColor?.('#282828'); } catch {}
     try { tg.setBottomBarColor?.('#282828'); } catch {}
-
-    // Request fullscreen if available (Bot API 8.0+)
-    try { tg.requestFullscreen?.(); } catch {}
   }
 }
 
@@ -71,7 +65,6 @@ export function getUser(): AppUser {
     };
   }
 
-  // Debug: show WHY we fell back
   const debugName = !window.Telegram ? 'NO_TG_OBJ'
     : !tg ? 'NO_WEBAPP'
     : !tg.initDataUnsafe ? 'NO_INITDATA'
