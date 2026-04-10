@@ -183,7 +183,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
-      {menuOpen&&<div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:40}}/>}
       <div className="flex items-center gap-1.5" style={{height:'env(titlebar-area-height, 32px)',background:"#191919",borderBottom:"1px solid #232323",WebkitAppRegion:'drag' as any,appRegion:'drag' as any,position:'fixed',top:'env(titlebar-area-y, 0)',left:'env(titlebar-area-x, 0)',width:'env(titlebar-area-width, 100%)',zIndex:30,paddingLeft:8,paddingRight:8,boxSizing:'border-box'}}>
         <LkIco size={13}/><span className="flex-1 font-semibold truncate" style={{fontSize:12,color:"#D2D2D2",minWidth:0}}>Lock Board</span>
         <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"1px 5px",borderRadius:3,lineHeight:"16px",WebkitAppRegion:'no-drag' as any}}>{entries.length}</span>
@@ -193,10 +192,10 @@ export default function App() {
             <Av user={me} size={20}/><span style={{fontSize:11,color:"#D2D2D2",maxWidth:90}} className="truncate">{dn(me.name,me.username)}</span>
             <svg width={8} height={8} viewBox="0 0 16 16" style={{transform:menuOpen?"rotate(180deg)":"",transition:"transform .15s"}}><path d="M3 5h10L8 11z" fill="#7A7A7A"/></svg>
           </div>
-          {menuOpen&&<div style={{position:"absolute",right:0,top:28,background:"#3F3F3F",border:"1px solid #505050",borderRadius:6,padding:4,zIndex:50,minWidth:140,boxShadow:"0 6px 16px rgba(0,0,0,.5)"}}>
+          {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0}}/><div style={{position:"absolute",right:0,top:28,background:"#3F3F3F",border:"1px solid #505050",borderRadius:6,padding:4,zIndex:1,minWidth:140,boxShadow:"0 6px 16px rgba(0,0,0,.5)"}}>
             <div style={{padding:"6px 10px",fontSize:11,color:"#D2D2D2",borderBottom:"1px solid #505050",marginBottom:2}}>{me.name}{me.username&&<div style={{fontSize:10,color:"#7A7A7A",marginTop:1}}>@{me.username}</div>}</div>
             <div onClick={()=>{logout();setMe(null);setMenuOpen(false);}} className="cursor-pointer" style={{padding:"6px 10px",fontSize:11,color:"#D35555",borderRadius:4}} onMouseEnter={e=>(e.currentTarget.style.background="#4A4A4A")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>Log out</div>
-          </div>}
+          </div></>}
         </div>
       </div>
       {notif&&<div style={{background:"#2D5A3D",color:"#A8E6A1",fontSize:10,padding:"2px 6px",textAlign:"center"}}>{notif}</div>}
