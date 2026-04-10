@@ -99,9 +99,11 @@ export function logout() {
 }
 
 export function haptic(type: 'light' | 'medium' | 'heavy' = 'light') {
-  window.Telegram?.WebApp?.HapticFeedback?.impactOccurred(type);
+  const tg = window.Telegram?.WebApp;
+  if (tg?.initData) tg.HapticFeedback?.impactOccurred(type);
 }
 
 export function hapticNotify(type: 'success' | 'warning' | 'error' = 'success') {
-  window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred(type);
+  const tg = window.Telegram?.WebApp;
+  if (tg?.initData) tg.HapticFeedback?.notificationOccurred(type);
 }
