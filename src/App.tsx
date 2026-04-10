@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, ref, onValue, set, remove, update } from './firebase';
-import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, isTgWebApp, logout, type AppUser, type TelegramLoginUser } from './auth';
+import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, checkGoogleRedirect, isTgWebApp, logout, type AppUser, type TelegramLoginUser } from './auth';
 import { getIconSrc, getExt } from './icons';
 
 /* Unity Editor dark theme palette */
@@ -76,7 +76,7 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
   }, [onLogin]);
   const handleGoogle = async () => {
     setGLoading(true);
-    try { onLogin(await loginWithGoogle()); } catch(e) { console.error(e); setGLoading(false); }
+    try { const u = await loginWithGoogle(); if (u) onLogin(u); } catch(e) { console.error(e); setGLoading(false); }
   };
   const inTg = isTgWebApp();
   return (
@@ -109,6 +109,10 @@ export default function App() {
   const tRef = useRef<ReturnType<typeof setTimeout>>();
 
   /* All hooks BEFORE conditional return */
+  useEffect(() => {
+    if (!me) { checkGoogleRedirect().then(u => { if (u) setMe(u); }); }
+  }, []);
+
   const flash = useCallback((m: string) => {
     setNotif(m); clearTimeout(tRef.current);
     tRef.current = setTimeout(() => setNotif(null), 2500);

@@ -1,4 +1,4 @@
-import { auth, googleProvider, signInWithPopup } from './firebase';
+import { auth, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from './firebase';
 
 declare global {
   interface Window {
@@ -120,9 +120,22 @@ const isTgWebApp = () => !!window.Telegram?.WebApp?.initData;
 
 export { isTgWebApp };
 
-export async function loginWithGoogle(): Promise<AppUser> {
-  const result = await signInWithPopup(auth, googleProvider);
-  return googleUserToAppUser(result.user);
+export async function loginWithGoogle(): Promise<AppUser | null> {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return googleUserToAppUser(result.user);
+  } catch {
+    await signInWithRedirect(auth, googleProvider);
+    return null;
+  }
+}
+
+export async function checkGoogleRedirect(): Promise<AppUser | null> {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result?.user) return googleUserToAppUser(result.user);
+  } catch {}
+  return null;
 }
 
 export function haptic(type: 'light' | 'medium' | 'heavy' = 'light') {
