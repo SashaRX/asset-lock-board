@@ -106,14 +106,15 @@ export default function App() {
   const [expanded, setExpanded] = useState<Record<number,boolean>>({});
   const [menuOpen, setMenuOpen] = useState(false);
   const [pipWin, setPipWin] = useState<Window | null>(null);
-  const [muted, setMuted] = useState(() => localStorage.getItem('alb_muted') === '1');
+  const [notifyPref, setNotifyPref] = useState<'both'|'browser'|'telegram'|'off'>(() => (localStorage.getItem('alb_notify') as any) || 'both');
   const tRef = useRef<ReturnType<typeof setTimeout>>();
   const prevFilesRef = useRef<FilesMap>({});
+  const browserNotify = notifyPref === 'both' || notifyPref === 'browser';
 
   /* All hooks BEFORE conditional return */
   useEffect(() => {
-    if (!muted && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-  }, [muted]);
+    if (browserNotify && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  }, [browserNotify]);
 
   useEffect(() => {
     if (!me) { checkGoogleRedirect().then(u => { if (u) setMe(u); }); }
@@ -131,7 +132,7 @@ export default function App() {
       const cur = (snap.val() || {}) as FilesMap;
       setFiles(cur);
       const prev = prevFilesRef.current;
-      if (!muted && 'Notification' in window && Notification.permission === 'granted' && Object.keys(prev).length > 0) {
+      if (browserNotify && 'Notification' in window && Notification.permission === 'granted' && Object.keys(prev).length > 0) {
         const lines: string[] = [];
         for (const [k, p] of Object.entries(prev)) {
           if (!cur[k] && p.watchers?.[me.id]) lines.push('\u{1F513} ' + p.name + ' свободен');
@@ -245,7 +246,7 @@ export default function App() {
         <LkIco size={13}/><span className="flex-1 font-semibold truncate" style={{fontSize:12,color:"#D2D2D2",minWidth:0}}>Lock Board</span>
         <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"1px 5px",borderRadius:3,lineHeight:"16px",WebkitAppRegion:'no-drag' as any}}>{entries.length}</span>
         {'documentPictureInPicture' in window && <svg onClick={togglePip} width={18} height={18} viewBox="0 0 16 16" className="shrink-0 cursor-pointer" style={{WebkitAppRegion:'no-drag' as any}} title="Pin on top"><rect x="1" y="5" width="10" height="10" rx="1.5" fill="none" stroke={pipWin?"#7BAEFA":"#C0C0C0"} strokeWidth="1.3"/><path d={`M7 9L14 2M14 2H10M14 2v4`} fill="none" stroke={pipWin?"#7BAEFA":"#C0C0C0"} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-        <svg onClick={()=>{const v=!muted;setMuted(v);localStorage.setItem('alb_muted',v?'1':'0');if(!v&&'Notification' in window&&Notification.permission==='default')Notification.requestPermission();}} width={16} height={16} viewBox="0 0 16 16" className="shrink-0 cursor-pointer" style={{WebkitAppRegion:'no-drag' as any}} title={muted?'Unmute':'Mute'}>{muted?<><path d="M8 1.5A4 4 0 004 5.5v2.5L2.5 10.5h11L12 8V5.5A4 4 0 008 1.5z" fill="#585858"/><ellipse cx="8" cy="13" rx="1.5" ry="1" fill="#585858"/><line x1="2" y1="2" x2="14" y2="14" stroke="#D35555" strokeWidth="1.5" strokeLinecap="round"/></>:<><path d="M8 1.5A4 4 0 004 5.5v2.5L2.5 10.5h11L12 8V5.5A4 4 0 008 1.5z" fill="#C0C0C0"/><ellipse cx="8" cy="13" rx="1.5" ry="1" fill="#C0C0C0"/></>}</svg>
+        <svg onClick={()=>setMenuOpen(true)} width={16} height={16} viewBox="0 0 16 16" className="shrink-0 cursor-pointer" style={{WebkitAppRegion:'no-drag' as any}} title={`Notifications: ${notifyPref}`}>{notifyPref==='off'?<><path d="M8 1.5A4 4 0 004 5.5v2.5L2.5 10.5h11L12 8V5.5A4 4 0 008 1.5z" fill="#585858"/><ellipse cx="8" cy="13" rx="1.5" ry="1" fill="#585858"/><line x1="2" y1="2" x2="14" y2="14" stroke="#D35555" strokeWidth="1.5" strokeLinecap="round"/></>:<><path d="M8 1.5A4 4 0 004 5.5v2.5L2.5 10.5h11L12 8V5.5A4 4 0 008 1.5z" fill="#C0C0C0"/><ellipse cx="8" cy="13" rx="1.5" ry="1" fill="#C0C0C0"/></>}</svg>
         <div className="relative" style={{WebkitAppRegion:'no-drag' as any,zIndex:50}}>
           <div onClick={()=>setMenuOpen(!menuOpen)} className="flex items-center gap-1.5 cursor-pointer" style={{padding:"2px 6px",borderRadius:4,height:24,background:menuOpen?"#3F3F3F":"transparent"}}>
             <Av user={me} size={20}/><span style={{fontSize:11,color:"#D2D2D2",maxWidth:90}} className="truncate">{dn(me.name,me.username)}</span>
@@ -253,6 +254,9 @@ export default function App() {
           </div>
           {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0}}/><div style={{position:"absolute",right:0,top:28,background:"#3F3F3F",border:"1px solid #505050",borderRadius:6,padding:4,zIndex:1,minWidth:140,boxShadow:"0 6px 16px rgba(0,0,0,.5)"}}>
             <div style={{padding:"6px 10px",fontSize:11,color:"#D2D2D2",borderBottom:"1px solid #505050",marginBottom:2}}>{me.name}{me.username&&<div style={{fontSize:10,color:"#7A7A7A",marginTop:1}}>@{me.username}</div>}</div>
+            <div style={{padding:"4px 10px",fontSize:10,color:"#7A7A7A",marginBottom:2}}>Notifications</div>
+            {(['both','browser','telegram','off'] as const).map(p=><div key={p} onClick={()=>{setNotifyPref(p);localStorage.setItem('alb_notify',p);update(ref(db),{[`users/${me.id}/notifyPref`]:p});}} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:notifyPref===p?"#7BAEFA":"#D2D2D2",borderRadius:3,background:notifyPref===p?"#46607C":"transparent"}} onMouseEnter={e=>{if(notifyPref!==p)e.currentTarget.style.background="#4A4A4A"}} onMouseLeave={e=>{if(notifyPref!==p)e.currentTarget.style.background="transparent"}}><span style={{width:14,textAlign:'center'}}>{notifyPref===p?'●':'○'}</span>{{both:'Browser + Telegram',browser:'Browser only',telegram:'Telegram only',off:'Off'}[p]}</div>)}
+            <div style={{borderTop:"1px solid #505050",marginTop:4,paddingTop:4}}/>
             <div onClick={()=>{logout();setMe(null);setMenuOpen(false);}} className="cursor-pointer" style={{padding:"6px 10px",fontSize:11,color:"#D35555",borderRadius:4}} onMouseEnter={e=>(e.currentTarget.style.background="#4A4A4A")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>Log out</div>
           </div></>}
         </div>

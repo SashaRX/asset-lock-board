@@ -310,8 +310,14 @@ function queueNotify(userId, text) {
   notifyTimer = setTimeout(flushNotify, DEBOUNCE_MS);
 }
 
-function flushNotify() {
+async function flushNotify() {
   for (const [userId, lines] of Object.entries(notifyQueue)) {
+    // Check user's notification preference
+    try {
+      const snap = await get(ref(db, `users/${userId}/notifyPref`));
+      const pref = snap.val() || 'both';
+      if (pref === 'browser' || pref === 'off') continue; // skip TG notification
+    } catch {}
     bot.telegram.sendMessage(userId, lines.join('\n'), { parse_mode: 'Markdown' }).catch(() => {});
   }
   notifyQueue = {};
