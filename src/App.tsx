@@ -149,10 +149,12 @@ export default function App() {
     if (pipWin) { pipWin.close(); setPipWin(null); return; }
     if (!('documentPictureInPicture' in window)) return;
     const pip = await (window as any).documentPictureInPicture.requestWindow({ width: 340, height: 480 });
+    const style = pip.document.createElement('style');
+    style.textContent = 'html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#282828}';
+    pip.document.head.appendChild(style);
     const iframe = pip.document.createElement('iframe');
     iframe.src = window.location.href;
-    iframe.style.cssText = 'width:100%;height:100%;border:none;';
-    pip.document.body.style.cssText = 'margin:0;overflow:hidden;';
+    iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
     pip.document.body.appendChild(iframe);
     pip.addEventListener('pagehide', () => setPipWin(null));
     setPipWin(pip);
