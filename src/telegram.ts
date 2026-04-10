@@ -56,7 +56,7 @@ function colorForId(id: number): string {
 
 export function initTelegram() {
   const tg = window.Telegram?.WebApp;
-  if (tg) {
+  if (tg && tg.initData) {
     tg.ready();
     try { tg.setHeaderColor?.('#191919'); } catch {}
     try { tg.setBackgroundColor?.('#282828'); } catch {}
