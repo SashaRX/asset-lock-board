@@ -66,6 +66,8 @@ export default function App() {
   const [notif, setNotif] = useState<string|null>(null);
   const [expanded, setExpanded] = useState<Record<number,boolean>>({});
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pipWin, setPipWin] = useState<Window | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const tRef = useRef<ReturnType<typeof setTimeout>>();
 
   /* All hooks BEFORE conditional return */
@@ -142,6 +144,30 @@ export default function App() {
   const rmSaved = async (n:string) => { await remove(ref(db,`saved/${toKey(n)}`)); setSel(p=>{const s=new Set(p);s.delete(n);return s;}); };
   const togExp = (id:number) => setExpanded(p=>({...p,[id]:!p[id]}));
 
+  const togglePip = async () => {
+    if (pipWin) { pipWin.close(); return; }
+    if (!('documentPictureInPicture' in window)) return;
+    const pip = await (window as any).documentPictureInPicture.requestWindow({ width: 340, height: 480 });
+    // Copy styles
+    [...document.styleSheets].forEach((sheet: CSSStyleSheet) => {
+      try {
+        const css = [...sheet.cssRules].map(r => r.cssText).join('\n');
+        const s = pip.document.createElement('style'); s.textContent = css;
+        pip.document.head.appendChild(s);
+      } catch {
+        if (sheet.href) { const l = pip.document.createElement('link'); l.rel='stylesheet'; l.href=sheet.href; pip.document.head.appendChild(l); }
+      }
+    });
+    pip.document.body.style.margin = '0';
+    pip.document.body.style.background = '#282828';
+    if (contentRef.current) pip.document.body.appendChild(contentRef.current);
+    pip.addEventListener('pagehide', () => {
+      if (contentRef.current) document.getElementById('pip-host')?.appendChild(contentRef.current);
+      setPipWin(null);
+    });
+    setPipWin(pip);
+  };
+
   const entries = Object.entries(files);
   const mine = entries.filter(([,f])=>f.ownerId===me.id);
   const ghosts = entries.filter(([,f])=>f.ownerId!==me.id&&!!f.watchers?.[me.id]);
@@ -155,11 +181,13 @@ export default function App() {
   const rowStyle="grid items-center",hoverClass="hover:bg-[#383838]";
 
   return (
-    <div className="min-h-screen relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
+    <div id="pip-host">
+    <div ref={contentRef} className="min-h-screen relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
       {menuOpen&&<div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:40}}/>}
       <div className="flex items-center gap-1.5 px-2" style={{height:32,background:"#191919",borderBottom:"1px solid #232323",WebkitAppRegion:'drag' as any,appRegion:'drag' as any,paddingLeft:'env(titlebar-area-x, 8px)',width:'env(titlebar-area-width, 100%)'}}>
         <LkIco size={13}/><span className="flex-1 font-semibold" style={{fontSize:12,color:"#D2D2D2"}}>Asset Lock Board</span>
         <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"1px 5px",borderRadius:3,lineHeight:"16px",WebkitAppRegion:'no-drag' as any}}>{entries.length}</span>
+        {'documentPictureInPicture' in window && <svg onClick={togglePip} width={14} height={14} viewBox="0 0 16 16" className="shrink-0 cursor-pointer" style={{WebkitAppRegion:'no-drag' as any,opacity:pipWin?.9:.5}} title="Pin on top"><rect x="1" y="1" width="14" height="10" rx="1.5" fill="none" stroke={pipWin?"#7BAEFA":"#7A7A7A"} strokeWidth="1.3"/><rect x="8" y="5" width="7" height="5" rx="1" fill={pipWin?"#7BAEFA":"#7A7A7A"}/></svg>}
         <div className="relative" style={{WebkitAppRegion:'no-drag' as any}}>
           <div onClick={()=>setMenuOpen(!menuOpen)} className="flex items-center gap-1.5 cursor-pointer" style={{padding:"2px 6px",borderRadius:4,height:24,background:menuOpen?"#3F3F3F":"transparent"}}>
             <Av user={me} size={20}/><span style={{fontSize:11,color:"#D2D2D2",maxWidth:90}} className="truncate">{dn(me.name,me.username)}</span>
@@ -214,6 +242,7 @@ export default function App() {
           {more&&!isExp&&<div className="cursor-pointer" style={{padding:"1px 14px 3px",fontSize:10,color:"#7BAEFA",background:"#282828"}} onClick={()=>togExp(uid)}>+ {g.files.length-CL} more</div>}
         </div>;})}
       </div>
+    </div>
     </div>
   );
 }
