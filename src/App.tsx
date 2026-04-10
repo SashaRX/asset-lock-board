@@ -1,7 +1,32 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, ref, onValue, set, remove, update } from './firebase';
-import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, checkGoogleRedirect, logout, type AppUser, type TelegramLoginUser } from './telegram';
+import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, checkGoogleRedirect, logout, type AppUser, type TelegramLoginUser } from './auth';
 import { getIconSrc, getExt } from './icons';
+
+/* Unity Editor dark theme palette */
+const T = {
+  bg: '#282828',       // main background
+  bgDark: '#191919',   // header / section headers
+  bgMid: '#303030',    // content area
+  bgRow: '#383838',    // alternating rows / hover
+  bgPanel: '#353535',  // panels
+  bgInput: '#3F3F3F',  // inputs / menus
+  border: '#232323',   // subtle borders
+  borderMid: '#303030',// button borders
+  borderLight: '#3C3C3C',
+  text: '#D2D2D2',     // primary text
+  textBright: '#EEE',  // emphasized text
+  textDim: '#7A7A7A',  // secondary text
+  textMuted: '#585858', // muted / disabled
+  accent: '#7BAEFA',   // selection / links
+  accentGreen: '#58B258',
+  accentOrange: '#E8A04C',
+  accentRed: '#D35555',
+  lockRed: '#D32222',
+  iconLight: '#C0C0C0',
+  font: "Inter,'Segoe UI',system-ui,sans-serif",
+  monoFont: "Consolas,monospace",
+} as const;
 
 const toKey = (s: string) => String(s).replace(/[.\/]/g, '~');
 const toName = (s: string) => { const parts = s.replace(/\\/g, '/').split('/'); return parts[parts.length - 1] || parts[parts.length - 2] || s; };
