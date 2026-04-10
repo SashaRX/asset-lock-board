@@ -58,10 +58,15 @@ function Chev({open}:{open:boolean}) {
 function fmt(ts:number){const d=new Date(ts);return d.getHours().toString().padStart(2,"0")+":"+d.getMinutes().toString().padStart(2,"0");}
 function dn(name:string,username?:string){return username?`@${username}`:name;}
 
+const TEAM_PASS = 'alb2025'; // change and redeploy to update
+
 function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
   const wRef = useRef<HTMLDivElement>(null);
   const [gLoading, setGLoading] = useState(false);
   const [simpleName, setSimpleName] = useState('');
+  const [passOk, setPassOk] = useState(() => localStorage.getItem('alb_pass') === TEAM_PASS);
+  const [passInput, setPassInput] = useState('');
+  const [passErr, setPassErr] = useState(false);
   useEffect(() => {
     (window as any).onTelegramAuth = (tgUser: TelegramLoginUser) => onLogin(loginWithTelegram(tgUser));
     if (wRef.current && !wRef.current.querySelector('script')) {
@@ -79,6 +84,10 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
     setGLoading(true);
     try { const u = await loginWithGoogle(); if (u) onLogin(u); } catch(e) { console.error(e); setGLoading(false); }
   };
+  const checkPass = () => {
+    if (passInput === TEAM_PASS) { localStorage.setItem('alb_pass', TEAM_PASS); setPassOk(true); setPassErr(false); }
+    else setPassErr(true);
+  };
   const handleSimple = () => {
     const name = simpleName.trim();
     if (!name) return;
@@ -89,6 +98,13 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
     <div style={{minHeight:'100vh',background:'#282828',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:"Inter,'Segoe UI',system-ui,sans-serif",gap:12}}>
       <svg width={40} height={40} viewBox="0 0 32 32"><rect x="4" y="6" width="16" height="20" rx="2" fill="#4A90D9" opacity=".35"/><rect x="8" y="3" width="16" height="20" rx="2" fill="#4A90D9" opacity=".6"/><rect x="12" y="0" width="16" height="20" rx="2" fill="#4A90D9"/><rect x="17" y="8" width="6" height="5" rx="1" fill="#282828"/><path d="M19 8V6.5a1.5 1.5 0 013 0V8" fill="none" stroke="#282828" strokeWidth="1.2" strokeLinecap="round"/></svg>
       <div style={{fontSize:16,color:'#D2D2D2',fontWeight:600,marginBottom:4}}>Asset Lock Board</div>
+      {!passOk?<>
+        <div style={{display:'flex',gap:6,width:250}}>
+          <input value={passInput} onChange={e=>{setPassInput(e.target.value);setPassErr(false);}} onKeyDown={e=>{if(e.key==='Enter')checkPass();}} placeholder="Team password" type="password" style={{flex:1,height:36,borderRadius:6,border:`1px solid ${passErr?'#D35555':'#505050'}`,background:'#3F3F3F',color:'#EEE',fontSize:14,padding:'0 10px',outline:'none'}}/>
+          <button onClick={checkPass} style={{height:36,borderRadius:6,border:'none',background:'#4A90D9',color:'#fff',fontSize:13,fontWeight:600,padding:'0 16px',cursor:'pointer'}}>&rarr;</button>
+        </div>
+        {passErr&&<div style={{fontSize:11,color:'#D35555',marginTop:2}}>Wrong password</div>}
+      </>:<>
       <div style={{display:'flex',gap:6,width:250}}>
         <input value={simpleName} onChange={e=>setSimpleName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleSimple();}} placeholder="Your name" style={{flex:1,height:36,borderRadius:6,border:'1px solid #505050',background:'#3F3F3F',color:'#EEE',fontSize:14,padding:'0 10px',outline:'none'}}/>
         <button onClick={handleSimple} disabled={!simpleName.trim()} style={{height:36,borderRadius:6,border:'none',background:simpleName.trim()?'#4A90D9':'#3F3F3F',color:simpleName.trim()?'#fff':'#585858',fontSize:13,fontWeight:600,padding:'0 16px',cursor:simpleName.trim()?'pointer':'default'}}>Enter</button>
@@ -104,6 +120,7 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
         </div>
       </div>}
       {inTg && <div ref={wRef}/>}
+      </>}
     </div>
   );
 }
