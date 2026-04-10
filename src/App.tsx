@@ -82,11 +82,23 @@ export default function App() {
     return () => { unsubFiles(); unsubSaved(); };
   }, [me]);
 
-  /* Save user profile for Unity lookup */
+  /* Save user profile for Unity lookup + fetch photo from bot */
   useEffect(() => {
     if (!me) return;
-    set(ref(db, `users/${me.id}`), { name: me.name, username: me.username || '', color: me.color });
-  }, [me]);
+    const userRef = ref(db, `users/${me.id}`);
+    // Write name/username/color
+    set(userRef, { name: me.name, username: me.username || '', color: me.color, ...(me.photo ? {photo: me.photo} : {}) });
+    // Read back (bot may have saved a working photo URL)
+    const unsub = onValue(userRef, snap => {
+      const data = snap.val();
+      if (data?.photo && data.photo !== me.photo) {
+        const updated = { ...me, photo: data.photo };
+        setMe(updated);
+        localStorage.setItem('alb_user', JSON.stringify(updated));
+      }
+    });
+    return () => unsub();
+  }, [me?.id]);
 
   if (!me) return <LoginScreen onLogin={setMe} />;
 

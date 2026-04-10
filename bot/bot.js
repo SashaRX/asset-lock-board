@@ -1,3 +1,5 @@
+const toKey = (s) => s.replace(/\./g, '~');
+
 // Asset Lock Board — Telegram Bot
 // Dual mode: Mini App + Inline Board in group chats
 
@@ -23,7 +25,30 @@ const bot = new Telegraf(BOT_TOKEN);
 const boards = {};       // chatId -> messageId
 const waitingLock = {};  // userId -> chatId
 
-const toKey = (s) => s.replace(/\./g, '~');
+const COLORS = ['#4A90D9','#E8A04C','#B07ACC','#D35555','#5AAFAF','#8BC34A','#FF7043','#AB47BC'];
+function colorForId(id) { return COLORS[id % COLORS.length]; }
+
+// Sync user profile + photo to Firebase
+async function syncUserProfile(ctx) {
+  const u = ctx.from;
+  if (!u) return;
+  const profile = {
+    name: userName(u),
+    username: u.username || '',
+    color: colorForId(u.id),
+  };
+  // Get profile photo
+  try {
+    const photos = await bot.telegram.getUserProfilePhotos(u.id, 0, 1);
+    if (photos.total_count > 0) {
+      const fileId = photos.photos[0][photos.photos[0].length - 1].file_id;
+      const fileLink = await bot.telegram.getFileLink(fileId);
+      profile.photo = fileLink.href || fileLink.toString();
+    }
+  } catch (e) { /* no photo */ }
+  await set(ref(db, `users/${u.id}`), profile);
+}
+
 
 // --- Format board message ---
 function formatBoard(files) {
@@ -81,7 +106,9 @@ async function updateAllBoards() {
 
 // --- Commands ---
 
-bot.command('start', (ctx) => {
+bot.command('start', async (ctx) => {
+  syncUserProfile(ctx).catch(() => {});
+
   const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
   const markup = isGroup
     ? undefined
@@ -148,7 +175,8 @@ async function doLock(ctx, filename) {
 
   await set(ref(db, `files/${k}`), {
     name: filename, ownerId: uid, ownerName: userName(ctx.from),
-    ownerColor: '#4A90D9', watchers: {}, since: Date.now(),
+    ownerUsername: ctx.from.username || '',
+    ownerColor: colorForId(uid), watchers: {}, since: Date.now(),
   });
   await set(ref(db, `saved/${k}`), filename);
   delete waitingLock[uid];
