@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, ref, onValue, set, remove, update } from './firebase';
-import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, type AppUser, type TelegramLoginUser } from './telegram';
+import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, logout, type AppUser, type TelegramLoginUser } from './telegram';
 import { getIconSrc, getExt } from './icons';
 
 const toKey = (s: string) => s.replace(/\./g, '~');
@@ -140,6 +140,7 @@ export default function App() {
       <div className="flex items-center gap-1 px-1.5" style={{height:22,background:"#191919",borderBottom:"1px solid #232323"}}>
         <LkIco size={11}/><span className="flex-1 font-semibold" style={{fontSize:11,color:"#D2D2D2"}}>Asset Lock Board</span>
         <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"0 4px",borderRadius:3,lineHeight:"14px"}}>{entries.length}</span>
+        <div onClick={()=>{logout();setMe(null);}} className="flex items-center gap-1 cursor-pointer" style={{padding:"0 4px",borderRadius:3,height:16}}><Av user={me} size={14}/><span style={{fontSize:9,color:"#7A7A7A"}}>×</span></div>
       </div>
       {notif&&<div style={{background:"#2D5A3D",color:"#A8E6A1",fontSize:10,padding:"2px 6px",textAlign:"center"}}>{notif}</div>}
       <div style={{background:"#303030"}}>
