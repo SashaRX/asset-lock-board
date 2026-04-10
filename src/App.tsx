@@ -16,7 +16,8 @@ function FIcon({ext,size=16}:{ext:string;size?:number}) {
   return <img src={getIconSrc(ext)} alt={ext} width={size} height={size} className="shrink-0 block" />;
 }
 function Av({user,size=18}:{user:{name:string;color:string;photo?:string};size?:number}) {
-  if (user.photo) return <img src={user.photo} alt={user.name[0]} width={size} height={size} className="shrink-0 block rounded-full" style={{width:size,height:size,objectFit:'cover'}}/>;
+  const [imgOk, setImgOk] = useState(true);
+  if (user.photo && imgOk) return <img src={user.photo} alt={user.name[0]} width={size} height={size} onError={()=>setImgOk(false)} className="shrink-0 block rounded-full" style={{width:size,height:size,objectFit:'cover'}}/>;
   return <span className="shrink-0 inline-flex items-center justify-center rounded-full font-bold text-white" style={{width:size,height:size,background:user.color,fontSize:size*.55}}>{user.name[0]}</span>;
 }
 function LkIco({size=13}:{size?:number}) {
