@@ -101,6 +101,13 @@ export function logout() {
   auth.signOut().catch(() => {});
 }
 
+export function loginSimple(name: string): AppUser {
+  const id = Date.now() + Math.floor(Math.random() * 1000);
+  const user: AppUser = { id, name: name.trim(), color: colorForId(id) };
+  localStorage.setItem('alb_user', JSON.stringify(user));
+  return user;
+}
+
 function googleUserToAppUser(u: {uid:string; displayName:string|null; photoURL:string|null}): AppUser {
   const numId = Math.abs([...u.uid].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0));
   const user: AppUser = {
