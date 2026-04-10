@@ -1,3 +1,5 @@
+import { auth, googleProvider, signInWithPopup } from './firebase';
+
 declare global {
   interface Window {
     Telegram?: {
@@ -96,6 +98,21 @@ export function loginWithTelegram(tgUser: TelegramLoginUser): AppUser {
 
 export function logout() {
   localStorage.removeItem('alb_user');
+  auth.signOut().catch(() => {});
+}
+
+export async function loginWithGoogle(): Promise<AppUser> {
+  const result = await signInWithPopup(auth, googleProvider);
+  const u = result.user;
+  const numId = Math.abs([...u.uid].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0));
+  const user: AppUser = {
+    id: numId,
+    name: u.displayName || 'User',
+    color: colorForId(numId),
+    photo: u.photoURL || undefined,
+  };
+  localStorage.setItem('alb_user', JSON.stringify(user));
+  return user;
 }
 
 export function haptic(type: 'light' | 'medium' | 'heavy' = 'light') {
