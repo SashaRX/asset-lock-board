@@ -138,17 +138,18 @@ export default function App() {
 
   return (
     <div className="min-h-screen relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
-      <div className="flex items-center gap-1 px-1.5" style={{height:22,background:"#191919",borderBottom:"1px solid #232323"}}>
-        <LkIco size={11}/><span className="flex-1 font-semibold" style={{fontSize:11,color:"#D2D2D2"}}>Asset Lock Board</span>
-        <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"0 4px",borderRadius:3,lineHeight:"14px"}}>{entries.length}</span>
+      {menuOpen&&<div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:40}}/>}
+      <div className="flex items-center gap-1.5 px-2" style={{height:32,background:"#191919",borderBottom:"1px solid #232323"}}>
+        <LkIco size={13}/><span className="flex-1 font-semibold" style={{fontSize:12,color:"#D2D2D2"}}>Asset Lock Board</span>
+        <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"1px 5px",borderRadius:3,lineHeight:"16px"}}>{entries.length}</span>
         <div className="relative">
-          <div onClick={()=>setMenuOpen(!menuOpen)} className="flex items-center gap-1 cursor-pointer" style={{padding:"0 4px",borderRadius:3,height:18}}>
-            <Av user={me} size={16}/><span style={{fontSize:10,color:"#D2D2D2",maxWidth:80}} className="truncate">{dn(me.name,me.username)}</span>
-            <svg width={8} height={8} viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="#7A7A7A" strokeWidth="2" strokeLinecap="round"/></svg>
+          <div onClick={()=>setMenuOpen(!menuOpen)} className="flex items-center gap-1.5 cursor-pointer" style={{padding:"2px 6px",borderRadius:4,height:24,background:menuOpen?"#3F3F3F":"transparent"}}>
+            <Av user={me} size={20}/><span style={{fontSize:11,color:"#D2D2D2",maxWidth:90}} className="truncate">{dn(me.name,me.username)}</span>
+            <svg width={9} height={9} viewBox="0 0 16 16" style={{transform:menuOpen?"rotate(180deg)":"",transition:"transform .15s"}}><path d="M4 6l4 4 4-4" fill="none" stroke="#7A7A7A" strokeWidth="2" strokeLinecap="round"/></svg>
           </div>
-          {menuOpen&&<div style={{position:"absolute",right:0,top:20,background:"#3F3F3F",border:"1px solid #505050",borderRadius:4,padding:4,zIndex:50,minWidth:120,boxShadow:"0 4px 12px rgba(0,0,0,.4)"}}>
-            <div style={{padding:"4px 8px",fontSize:10,color:"#7A7A7A",borderBottom:"1px solid #505050",marginBottom:2}}>{me.name}{me.username&&<span style={{color:"#585858"}}> @{me.username}</span>}</div>
-            <div onClick={()=>{logout();setMe(null);setMenuOpen(false);}} className="cursor-pointer" style={{padding:"4px 8px",fontSize:11,color:"#D35555",borderRadius:3}} onMouseEnter={e=>(e.currentTarget.style.background="#4A4A4A")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>Log out</div>
+          {menuOpen&&<div style={{position:"absolute",right:0,top:28,background:"#3F3F3F",border:"1px solid #505050",borderRadius:6,padding:4,zIndex:50,minWidth:140,boxShadow:"0 6px 16px rgba(0,0,0,.5)"}}>
+            <div style={{padding:"6px 10px",fontSize:11,color:"#D2D2D2",borderBottom:"1px solid #505050",marginBottom:2}}>{me.name}{me.username&&<div style={{fontSize:10,color:"#7A7A7A",marginTop:1}}>@{me.username}</div>}</div>
+            <div onClick={()=>{logout();setMe(null);setMenuOpen(false);}} className="cursor-pointer" style={{padding:"6px 10px",fontSize:11,color:"#D35555",borderRadius:4}} onMouseEnter={e=>(e.currentTarget.style.background="#4A4A4A")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>Log out</div>
           </div>}
         </div>
       </div>
