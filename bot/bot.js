@@ -8,6 +8,8 @@ require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const { initializeApp } = require('firebase/app');
 const { getDatabase, ref, onValue, set, remove, get } = require('firebase/database');
+const fs = require('fs');
+const path = require('path');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'https://sasharx.github.io/asset-lock-board/';
@@ -22,6 +24,19 @@ const firebaseApp = initializeApp({
 });
 const db = getDatabase(firebaseApp);
 const bot = new Telegraf(BOT_TOKEN);
+
+// Custom emoji icons
+let emojiMap = {};
+try { emojiMap = JSON.parse(fs.readFileSync(path.join(__dirname, 'emoji-map.json'), 'utf8')); } catch {}
+const EXT_EMOJI = { unity:'unity', scene:'unity', fbx:'fbx', obj:'fbx', prefab:'prefab', mat:'mat', cs:'cs', png:'png', jpg:'png', jpeg:'png', tga:'png', psd:'png', anim:'anim', controller:'anim', wav:'folder', mp3:'folder', txt:'folder', json:'folder', asset:'folder' };
+function fileEmoji(filename) {
+  const ext = (filename.split('.').pop() || '').toLowerCase();
+  const key = EXT_EMOJI[ext] || 'folder';
+  const id = emojiMap[key];
+  if (!id) return '';
+  return `<tg-emoji emoji-id="${id}">${ICON_EMOJIS[key]||'📄'}</tg-emoji> `;
+}
+const ICON_EMOJIS = { unity:'🎮', fbx:'🔷', prefab:'📦', mat:'🎨', cs:'💻', png:'🖼', anim:'🎬', folder:'📁' };
 
 // --- State ---
 const boards = {};       // chatId -> messageId
@@ -312,13 +327,12 @@ function queueNotify(userId, text) {
 
 async function flushNotify() {
   for (const [userId, lines] of Object.entries(notifyQueue)) {
-    // Check user's notification preference
     try {
       const snap = await get(ref(db, `users/${userId}/notifyPref`));
       const pref = snap.val() || 'both';
-      if (pref === 'browser' || pref === 'off') continue; // skip TG notification
+      if (pref === 'browser' || pref === 'off') continue;
     } catch {}
-    bot.telegram.sendMessage(userId, lines.join('\n'), { parse_mode: 'Markdown' }).catch(() => {});
+    bot.telegram.sendMessage(userId, lines.join('\n'), { parse_mode: 'HTML' }).catch(() => {});
   }
   notifyQueue = {};
 }
@@ -334,7 +348,7 @@ onValue(ref(db, 'files'), async (snap) => {
   for (const [key, prev] of Object.entries(previousFiles)) {
     if (!current[key]) {
       for (const wId of Object.keys(prev.watchers || {})) {
-        queueNotify(wId, `\u{1F513} *${prev.name}* \u0441\u0432\u043e\u0431\u043e\u0434\u0435\u043d`);
+        queueNotify(wId, `\u{1F513} ${fileEmoji(prev.name)}<b>${prev.name}</b> свободен`);
       }
     }
   }
@@ -348,7 +362,7 @@ onValue(ref(db, 'files'), async (snap) => {
       const added = curW.filter(w => !prevW.includes(w));
       for (const wId of added) {
         const wName = cur.watchers[wId]?.name || 'Someone';
-        queueNotify(cur.ownerId, `\u{1F514} *${wName}* \u043e\u0436\u0438\u0434\u0430\u0435\u0442 *${cur.name}*`);
+        queueNotify(cur.ownerId, `\u{1F514} <b>${wName}</b> ожидает ${fileEmoji(cur.name)}<b>${cur.name}</b>`);
       }
     }
   }
