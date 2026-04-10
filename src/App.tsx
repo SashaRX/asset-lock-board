@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, ref, onValue, set, remove, update } from './firebase';
-import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, logout, type AppUser, type TelegramLoginUser } from './telegram';
+import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, checkGoogleRedirect, logout, type AppUser, type TelegramLoginUser } from './telegram';
 import { getIconSrc, getExt } from './icons';
 
 const toKey = (s: string) => String(s).replace(/[.\/]/g, '~');
@@ -51,7 +51,7 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
   }, [onLogin]);
   const handleGoogle = async () => {
     setGLoading(true);
-    try { const u = await loginWithGoogle(); onLogin(u); } catch(e) { console.error(e); setGLoading(false); }
+    try { const u = await loginWithGoogle(); if (u) onLogin(u); } catch(e) { console.error(e); setGLoading(false); }
   };
   return (
     <div style={{minHeight:'100vh',background:'#282828',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:"Inter,'Segoe UI',system-ui,sans-serif",gap:16}}>
@@ -80,6 +80,10 @@ export default function App() {
   const tRef = useRef<ReturnType<typeof setTimeout>>();
 
   /* All hooks BEFORE conditional return */
+  useEffect(() => {
+    if (!me) { checkGoogleRedirect().then(u => { if (u) setMe(u); }); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const flash = useCallback((m: string) => {
     setNotif(m); clearTimeout(tRef.current);
     tRef.current = setTimeout(() => setNotif(null), 2500);

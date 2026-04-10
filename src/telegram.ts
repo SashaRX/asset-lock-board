@@ -1,4 +1,4 @@
-import { auth, googleProvider, signInWithPopup } from './firebase';
+import { auth, googleProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from './firebase';
 
 declare global {
   interface Window {
@@ -101,9 +101,7 @@ export function logout() {
   auth.signOut().catch(() => {});
 }
 
-export async function loginWithGoogle(): Promise<AppUser> {
-  const result = await signInWithPopup(auth, googleProvider);
-  const u = result.user;
+function googleUserToAppUser(u: {uid:string; displayName:string|null; photoURL:string|null}): AppUser {
   const numId = Math.abs([...u.uid].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0));
   const user: AppUser = {
     id: numId,
@@ -113,6 +111,30 @@ export async function loginWithGoogle(): Promise<AppUser> {
   };
   localStorage.setItem('alb_user', JSON.stringify(user));
   return user;
+}
+
+const isTgWebApp = () => !!window.Telegram?.WebApp?.initData;
+
+export async function loginWithGoogle(): Promise<AppUser | null> {
+  if (isTgWebApp()) {
+    await signInWithRedirect(auth, googleProvider);
+    return null; // page will reload
+  }
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return googleUserToAppUser(result.user);
+  } catch {
+    await signInWithRedirect(auth, googleProvider);
+    return null;
+  }
+}
+
+export async function checkGoogleRedirect(): Promise<AppUser | null> {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result?.user) return googleUserToAppUser(result.user);
+  } catch {}
+  return null;
 }
 
 export function haptic(type: 'light' | 'medium' | 'heavy' = 'light') {
