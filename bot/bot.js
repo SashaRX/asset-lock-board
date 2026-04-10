@@ -42,12 +42,25 @@ async function syncUserProfile(ctx) {
   // Get profile photo
   try {
     const photos = await bot.telegram.getUserProfilePhotos(u.id, 0, 1);
+    console.log('Photos result:', JSON.stringify(photos));
     if (photos.total_count > 0) {
       const fileId = photos.photos[0][photos.photos[0].length - 1].file_id;
+      console.log('File ID:', fileId);
       const fileLink = await bot.telegram.getFileLink(fileId);
+      console.log('File link:', fileLink);
       profile.photo = fileLink.href || fileLink.toString();
+    } else {
+      console.log('No profile photos for user', u.id);
+      // Send instruction to user
+      bot.telegram.sendMessage(u.id,
+        '⚠️ Не вижу аватар.\n\n' +
+        'Чтобы фото отображалось в Asset Lock Board:\n' +
+        '1. Settings → Privacy and Security → Profile Photos\n' +
+        '2. Always share with → Add users → @asset_lock_board_bot\n' +
+        '3. Отправь /start ещё раз',
+      ).catch(() => {});
     }
-  } catch (e) { /* no photo */ }
+  } catch (e) { console.error('Photo error:', e.message); }
   await set(ref(db, `users/${u.id}`), profile);
 }
 
