@@ -68,7 +68,6 @@ export default function App() {
   const [expanded, setExpanded] = useState<Record<number,boolean>>({});
   const [menuOpen, setMenuOpen] = useState(false);
   const [pipWin, setPipWin] = useState<Window | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const tRef = useRef<ReturnType<typeof setTimeout>>();
 
   /* All hooks BEFORE conditional return */
@@ -147,26 +146,15 @@ export default function App() {
   const togExp = (id:number) => setExpanded(p=>({...p,[id]:!p[id]}));
 
   const togglePip = async () => {
-    if (pipWin) { pipWin.close(); return; }
+    if (pipWin) { pipWin.close(); setPipWin(null); return; }
     if (!('documentPictureInPicture' in window)) return;
     const pip = await (window as any).documentPictureInPicture.requestWindow({ width: 340, height: 480 });
-    // Copy styles
-    [...document.styleSheets].forEach((sheet: CSSStyleSheet) => {
-      try {
-        const css = [...sheet.cssRules].map(r => r.cssText).join('\n');
-        const s = pip.document.createElement('style'); s.textContent = css;
-        pip.document.head.appendChild(s);
-      } catch {
-        if (sheet.href) { const l = pip.document.createElement('link'); l.rel='stylesheet'; l.href=sheet.href; pip.document.head.appendChild(l); }
-      }
-    });
-    pip.document.body.style.margin = '0';
-    pip.document.body.style.background = '#282828';
-    if (contentRef.current) pip.document.body.appendChild(contentRef.current);
-    pip.addEventListener('pagehide', () => {
-      if (contentRef.current) document.getElementById('pip-host')?.appendChild(contentRef.current);
-      setPipWin(null);
-    });
+    const iframe = pip.document.createElement('iframe');
+    iframe.src = window.location.href;
+    iframe.style.cssText = 'width:100%;height:100%;border:none;';
+    pip.document.body.style.cssText = 'margin:0;overflow:hidden;';
+    pip.document.body.appendChild(iframe);
+    pip.addEventListener('pagehide', () => setPipWin(null));
     setPipWin(pip);
   };
 
@@ -183,9 +171,7 @@ export default function App() {
   const rowStyle="grid items-center",hoverClass="hover:bg-[#383838]";
 
   return (
-    <div id="pip-host">
-    {pipWin && <div style={{minHeight:'100vh',background:'#282828',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}><span style={{color:'#585858',fontSize:12}}>Board pinned on top</span></div>}
-    <div ref={contentRef} className={pipWin?'':'min-h-screen'} style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif",display:pipWin?'none':undefined}}>
+    <div className="min-h-screen relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
       {menuOpen&&<div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:40}}/>}
       <div className="flex items-center gap-1.5" style={{height:'env(titlebar-area-height, 32px)',background:"#191919",borderBottom:"1px solid #232323",WebkitAppRegion:'drag' as any,appRegion:'drag' as any,position:'fixed',top:'env(titlebar-area-y, 0)',left:'env(titlebar-area-x, 0)',width:'env(titlebar-area-width, 100%)',zIndex:30,paddingLeft:8,paddingRight:8,boxSizing:'border-box'}}>
         <LkIco size={13}/><span className="flex-1 font-semibold truncate" style={{fontSize:12,color:"#D2D2D2",minWidth:0}}>Lock Board</span>
@@ -246,7 +232,6 @@ export default function App() {
           {more&&!isExp&&<div className="cursor-pointer" style={{padding:"1px 14px 3px",fontSize:10,color:"#7BAEFA",background:"#282828"}} onClick={()=>togExp(uid)}>+ {g.files.length-CL} more</div>}
         </div>;})}
       </div>
-    </div>
     </div>
     </div>
   );
