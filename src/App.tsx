@@ -86,8 +86,10 @@ export default function App() {
   useEffect(() => {
     if (!me) return;
     const userRef = ref(db, `users/${me.id}`);
-    // Write name/username/color
-    set(userRef, { name: me.name, username: me.username || '', color: me.color, ...(me.photo ? {photo: me.photo} : {}) });
+    // Write name/username/color but never overwrite photo (bot manages it)
+    const profileData: Record<string, string> = { name: me.name, username: me.username || '', color: me.color };
+    // Use update instead of set to preserve existing photo from bot
+    update(ref(db), Object.fromEntries(Object.entries(profileData).map(([k, v]) => [`users/${me.id}/${k}`, v])));
     // Read back (bot may have saved a working photo URL)
     const unsub = onValue(userRef, snap => {
       const data = snap.val();

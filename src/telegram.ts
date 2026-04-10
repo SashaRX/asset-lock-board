@@ -88,7 +88,7 @@ export function loginWithTelegram(tgUser: TelegramLoginUser): AppUser {
     name: tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name[0] + '.' : ''),
     username: tgUser.username,
     color: colorForId(tgUser.id),
-    photo: tgUser.photo_url,
+    // photo comes from Firebase (bot saves working URL), not from Login Widget (404s)
   };
   localStorage.setItem('alb_user', JSON.stringify(user));
   return user;
