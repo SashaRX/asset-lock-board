@@ -3,7 +3,7 @@ import { db, ref, onValue, set, remove, update } from './firebase';
 import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, logout, type AppUser, type TelegramLoginUser } from './telegram';
 import { getIconSrc, getExt } from './icons';
 
-const toKey = (s: string) => String(s).replace(/\./g, '~');
+const toKey = (s: string) => String(s).replace(/[.\/]/g, '~');
 const toName = (s: string) => { const parts = s.replace(/\\/g, '/').split('/'); return parts[parts.length - 1] || parts[parts.length - 2] || s; };
 
 interface FileData {
@@ -113,7 +113,8 @@ export default function App() {
   const addFiles = async (names: string[]) => {
     const updates: Record<string, any> = {};
     let locked: string[] = [], taken: string[] = [];
-    for (const n of names) {
+    for (const raw of names) {
+      const n = toName(raw);
       const k = toKey(n);
       updates[`saved/${k}`] = n;
       const existing = files[k];
