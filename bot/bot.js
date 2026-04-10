@@ -1,5 +1,7 @@
 const toKey = (s) => s.replace(/\./g, '~');
 
+require('dotenv').config();
+
 // Asset Lock Board — Telegram Bot
 // Dual mode: Mini App + Inline Board in group chats
 
@@ -304,11 +306,13 @@ async function loadBoards() {
   console.log(`Loaded ${Object.keys(saved).length} board(s)`);
 }
 
-loadBoards().then(() => {
-  bot.launch().then(() => {
-    console.log('Bot started');
-    console.log(`WebApp: ${WEBAPP_URL}`);
-  });
+loadBoards().then(async () => {
+  await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+  console.log('Webhook deleted');
+  console.log('Starting bot...');
+  bot.launch({ dropPendingUpdates: true });
+  console.log('Bot started');
+  console.log(`WebApp: ${WEBAPP_URL}`);
 });
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
