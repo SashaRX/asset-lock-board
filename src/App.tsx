@@ -1,26 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { db, ref, onValue, set, remove, update, get } from './firebase';
+import { db, ref, onValue, set, remove, update } from './firebase';
 import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, type AppUser, type TelegramLoginUser } from './telegram';
 import { getIconSrc, getExt } from './icons';
 
-/* ─── Firebase key encoding (dots not allowed in keys) ─── */
 const toKey = (s: string) => s.replace(/\./g, '~');
 
-/* ─── Types ─── */
 interface FileData {
-  name: string;
-  ownerId: number;
-  ownerName: string;
-  ownerUsername?: string;
-  ownerColor: string;
-  watchers: Record<string, { name: string; color: string }>;
-  since: number;
+  name: string; ownerId: number; ownerName: string; ownerUsername?: string;
+  ownerColor: string; watchers: Record<string, { name: string; color: string }>; since: number;
 }
 interface FilesMap { [key: string]: FileData }
-
 const CL = 3;
 
-/* ─── SVG Icons ─── */
 function FIcon({ext,size=16}:{ext:string;size?:number}) {
   return <img src={getIconSrc(ext)} alt={ext} width={size} height={size} className="shrink-0 block" />;
 }
@@ -37,19 +28,12 @@ function Chev({open}:{open:boolean}) {
   return <svg width={10} height={10} viewBox="0 0 16 16" className="shrink-0" style={{transform:open?"rotate(180deg)":"",transition:"transform .15s"}}><path d="M4 6l4 4 4-4" fill="none" stroke="#7A7A7A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 function fmt(ts:number){const d=new Date(ts);return d.getHours().toString().padStart(2,"0")+":"+d.getMinutes().toString().padStart(2,"0");}
+function dn(name:string,username?:string){return username?`@${username}`:name;}
 
-/* ─── Display name: prefer @username ─── */
-function dn(name: string, username?: string): string {
-  return username ? `@${username}` : name;
-}
-
-/* ─── Login Screen ─── */
-function LoginScreen({ onLogin }: { onLogin: (u: AppUser) => void }) {
+function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
   const wRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    (window as any).onTelegramAuth = (tgUser: TelegramLoginUser) => {
-      onLogin(loginWithTelegram(tgUser));
-    };
+    (window as any).onTelegramAuth = (tgUser: TelegramLoginUser) => onLogin(loginWithTelegram(tgUser));
     if (wRef.current && !wRef.current.querySelector('script')) {
       const s = document.createElement('script');
       s.src = 'https://telegram.org/js/telegram-widget.js?22';
@@ -63,15 +47,13 @@ function LoginScreen({ onLogin }: { onLogin: (u: AppUser) => void }) {
   }, [onLogin]);
   return (
     <div style={{minHeight:'100vh',background:'#282828',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:"Inter,'Segoe UI',system-ui,sans-serif",gap:16}}>
-      <LkIco size={24}/>
-      <div style={{fontSize:14,color:'#D2D2D2',fontWeight:600}}>Asset Lock Board</div>
+      <LkIco size={24}/><div style={{fontSize:14,color:'#D2D2D2',fontWeight:600}}>Asset Lock Board</div>
       <div style={{fontSize:11,color:'#7A7A7A'}}>Log in with Telegram</div>
       <div ref={wRef} style={{marginTop:8}}/>
     </div>
   );
 }
 
-/* ─── Main App ─── */
 export default function App() {
   const [me, setMe] = useState<AppUser | null>(getUser);
   const [files, setFiles] = useState<FilesMap>({});
@@ -83,23 +65,29 @@ export default function App() {
   const [expanded, setExpanded] = useState<Record<number,boolean>>({});
   const tRef = useRef<ReturnType<typeof setTimeout>>();
 
-  /* ─── Login gate ─── */
-  if (!me) return <LoginScreen onLogin={setMe} />;
-
+  /* All hooks BEFORE conditional return */
   const flash = useCallback((m: string) => {
     setNotif(m); clearTimeout(tRef.current);
     tRef.current = setTimeout(() => setNotif(null), 2500);
   }, []);
 
-  /* ─── Firebase listeners ─── */
   useEffect(() => {
+    if (!me) return;
     initTelegram();
     const unsubFiles = onValue(ref(db, 'files'), snap => setFiles((snap.val() || {}) as FilesMap));
     const unsubSaved = onValue(ref(db, 'saved'), snap => setSaved(Object.values(snap.val() || {}) as string[]));
     return () => { unsubFiles(); unsubSaved(); };
-  }, []);
+  }, [me]);
 
-  /* ─── Actions ─── */
+  /* Save user profile for Unity lookup */
+  useEffect(() => {
+    if (!me) return;
+    set(ref(db, `users/${me.id}`), { name: me.name, username: me.username || '', color: me.color });
+  }, [me]);
+
+  if (!me) return <LoginScreen onLogin={setMe} />;
+
+  /* Actions (not hooks, safe after conditional) */
   const addFiles = async (names: string[]) => {
     const updates: Record<string, any> = {};
     let locked: string[] = [], taken: string[] = [];
@@ -113,11 +101,7 @@ export default function App() {
           locked.push(n);
         }
       } else {
-        updates[`files/${k}`] = {
-          name: n, ownerId: me.id, ownerName: me.name,
-          ownerUsername: me.username || '', ownerColor: me.color,
-          watchers: {}, since: Date.now(),
-        };
+        updates[`files/${k}`] = { name: n, ownerId: me.id, ownerName: me.name, ownerUsername: me.username || '', ownerColor: me.color, watchers: {}, since: Date.now() };
         taken.push(n);
       }
     }
@@ -130,137 +114,75 @@ export default function App() {
     setAddOpen(false);
   };
 
-  const submit = () => {
-    const fi = input.split(/[,;\n]+/).map(s => s.trim()).filter(s => s && s.includes('.'));
-    const all = [...new Set([...fi, ...sel])];
-    if (all.length) addFiles(all);
-  };
+  const submit = () => { const fi = input.split(/[,;\n]+/).map(s=>s.trim()).filter(s=>s&&s.includes('.')); const all = [...new Set([...fi,...sel])]; if (all.length) addFiles(all); };
+  const freeFile = async (n:string) => { const k=toKey(n); if(!files[k])return; await remove(ref(db,`files/${k}`)); flash(n+' free'); hapticNotify('success'); };
+  const freeAll = async () => { const u:Record<string,null>={}; Object.entries(files).forEach(([k,f])=>{if(f.ownerId===me.id)u[`files/${k}`]=null;}); await update(ref(db),u); flash('All freed'); hapticNotify('success'); };
+  const toggleWatch = async (n:string) => { const k=toKey(n);const f=files[k]; if(!f||f.ownerId===me.id)return; const wr=ref(db,`files/${k}/watchers/${me.id}`); if(f.watchers?.[me.id])await remove(wr); else await set(wr,{name:me.name,color:me.color}); haptic('light'); };
+  const isW = (k:string) => !!files[k]?.watchers?.[me.id];
+  const togSel = (n:string) => setSel(p=>{const s=new Set(p);s.has(n)?s.delete(n):s.add(n);return s;});
+  const rmSaved = async (n:string) => { await remove(ref(db,`saved/${toKey(n)}`)); setSel(p=>{const s=new Set(p);s.delete(n);return s;}); };
+  const togExp = (id:number) => setExpanded(p=>({...p,[id]:!p[id]}));
 
-  const freeFile = async (n: string) => {
-    const k = toKey(n); if (!files[k]) return;
-    await remove(ref(db, `files/${k}`));
-    flash(n + ' free'); hapticNotify('success');
-  };
-
-  const freeAll = async () => {
-    const updates: Record<string, null> = {};
-    Object.entries(files).forEach(([k, f]) => { if (f.ownerId === me.id) updates[`files/${k}`] = null; });
-    await update(ref(db), updates);
-    flash('All freed'); hapticNotify('success');
-  };
-
-  const toggleWatch = async (n: string) => {
-    const k = toKey(n); const f = files[k];
-    if (!f || f.ownerId === me.id) return;
-    const wr = ref(db, `files/${k}/watchers/${me.id}`);
-    if (f.watchers?.[me.id]) await remove(wr);
-    else await set(wr, { name: me.name, color: me.color });
-    haptic('light');
-  };
-
-  const isW = (k: string) => !!files[k]?.watchers?.[me.id];
-  const togSel = (n: string) => setSel(p => { const s = new Set(p); s.has(n) ? s.delete(n) : s.add(n); return s; });
-  const rmSaved = async (n: string) => { await remove(ref(db, `saved/${toKey(n)}`)); setSel(p => { const s = new Set(p); s.delete(n); return s; }); };
-  const togExp = (id: number) => setExpanded(p => ({...p, [id]: !p[id]}));
-
-  /* ─── Computed ─── */
   const entries = Object.entries(files);
-  const mine = entries.filter(([,f]) => f.ownerId === me.id);
-  const ghosts = entries.filter(([,f]) => f.ownerId !== me.id && !!f.watchers?.[me.id]);
-  const others = entries.filter(([,f]) => f.ownerId !== me.id);
-  const typed = input.split(/[,;\n]+/).map(s => s.trim()).filter(s => s && s.includes('.'));
-  const hasAny = typed.length > 0 || sel.size > 0;
+  const mine = entries.filter(([,f])=>f.ownerId===me.id);
+  const ghosts = entries.filter(([,f])=>f.ownerId!==me.id&&!!f.watchers?.[me.id]);
+  const others = entries.filter(([,f])=>f.ownerId!==me.id);
+  const typed = input.split(/[,;\n]+/).map(s=>s.trim()).filter(s=>s&&s.includes('.'));
+  const hasAny = typed.length>0||sel.size>0;
 
-  const grouped: Record<number, { owner: { id: number; name: string; username?: string; color: string }; files: [string, FileData][] }> = {};
-  others.forEach(([k, f]) => {
-    const id = f.ownerId;
-    if (!grouped[id]) grouped[id] = { owner: { id, name: f.ownerName, username: f.ownerUsername, color: f.ownerColor }, files: [] };
-    grouped[id].files.push([k, f]);
-  });
-  const groups = Object.values(grouped).sort((a, b) => b.files.length - a.files.length);
-
-  const rowStyle = "grid items-center";
-  const hoverClass = "hover:bg-[#383838]";
+  const grouped:Record<number,{owner:{id:number;name:string;username?:string;color:string};files:[string,FileData][]}> = {};
+  others.forEach(([k,f])=>{const id=f.ownerId;if(!grouped[id])grouped[id]={owner:{id,name:f.ownerName,username:f.ownerUsername,color:f.ownerColor},files:[]};grouped[id].files.push([k,f]);});
+  const groups = Object.values(grouped).sort((a,b)=>b.files.length-a.files.length);
+  const rowStyle="grid items-center",hoverClass="hover:bg-[#383838]";
 
   return (
     <div className="min-h-screen relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
-      {/* Header */}
       <div className="flex items-center gap-1 px-1.5" style={{height:22,background:"#191919",borderBottom:"1px solid #232323"}}>
         <LkIco size={11}/><span className="flex-1 font-semibold" style={{fontSize:11,color:"#D2D2D2"}}>Asset Lock Board</span>
         <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"0 4px",borderRadius:3,lineHeight:"14px"}}>{entries.length}</span>
       </div>
-
-      {notif && <div style={{background:"#2D5A3D",color:"#A8E6A1",fontSize:10,padding:"2px 6px",textAlign:"center"}}>{notif}</div>}
-
+      {notif&&<div style={{background:"#2D5A3D",color:"#A8E6A1",fontSize:10,padding:"2px 6px",textAlign:"center"}}>{notif}</div>}
       <div style={{background:"#303030"}}>
-        {entries.length === 0 && <div style={{padding:16,textAlign:"center",color:"#585858",fontSize:11}}>No active files</div>}
-
-        {/* YOUR FILES */}
-        {(mine.length > 0 || ghosts.length > 0) && <>
+        {entries.length===0&&<div style={{padding:16,textAlign:"center",color:"#585858",fontSize:11}}>No active files</div>}
+        {(mine.length>0||ghosts.length>0)&&<>
           <div className="flex items-center justify-between" style={{padding:"4px 6px 2px",background:"#282828"}}>
-            <span style={{fontSize:9,fontWeight:600,color:"#7A7A7A",textTransform:"uppercase",letterSpacing:".04em"}}>
-              Your files ({mine.length}){ghosts.length > 0 && <span style={{color:"#E8A04C"}}> +{ghosts.length}</span>}
-            </span>
-            {mine.length > 1 && <button onClick={freeAll} style={{height:14,padding:"0 5px",borderRadius:3,border:"1px solid #303030",background:"#585858",color:"#EEE",fontSize:9,cursor:"pointer",lineHeight:"12px"}}>Free All</button>}
+            <span style={{fontSize:9,fontWeight:600,color:"#7A7A7A",textTransform:"uppercase",letterSpacing:".04em"}}>Your files ({mine.length}){ghosts.length>0&&<span style={{color:"#E8A04C"}}> +{ghosts.length}</span>}</span>
+            {mine.length>1&&<button onClick={freeAll} style={{height:14,padding:"0 5px",borderRadius:3,border:"1px solid #303030",background:"#585858",color:"#EEE",fontSize:9,cursor:"pointer",lineHeight:"12px"}}>Free All</button>}
           </div>
-          {mine.map(([k,f],i) => <div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"18px 1fr 20px 32px 42px",height:18,padding:"0 6px",columnGap:3,background:i%2?"#383838":"transparent"}}>
+          {mine.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"18px 1fr 20px 32px 42px",height:18,padding:"0 6px",columnGap:3,background:i%2?"#383838":"transparent"}}>
             <FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:"#EEE"}}>{f.name}</span>
-            <div className="flex justify-center">{Object.keys(f.watchers||{}).length > 0 && <BellIco active size={13}/>}</div>
+            <div className="flex justify-center">{Object.keys(f.watchers||{}).length>0&&<BellIco active size={13}/>}</div>
             <span style={{fontSize:9,color:"#7A7A7A",textAlign:"right"}}>{fmt(f.since)}</span>
-            <button onClick={() => freeFile(f.name)} style={{height:14,borderRadius:3,border:"1px solid #303030",background:"#585858",color:"#EEE",fontSize:9,cursor:"pointer",padding:0}}>Free</button>
+            <button onClick={()=>freeFile(f.name)} style={{height:14,borderRadius:3,border:"1px solid #303030",background:"#585858",color:"#EEE",fontSize:9,cursor:"pointer",padding:0}}>Free</button>
           </div>)}
-          {ghosts.map(([k,f],i) => <div key={k} className={rowStyle} style={{gridTemplateColumns:"14px 18px 1fr 20px 18px 38px",height:18,padding:"0 6px",columnGap:3,opacity:.45,background:(mine.length+i)%2?"#383838":"transparent"}}>
+          {ghosts.map(([k,f],i)=><div key={k} className={rowStyle} style={{gridTemplateColumns:"14px 18px 1fr 20px 18px 38px",height:18,padding:"0 6px",columnGap:3,opacity:.45,background:(mine.length+i)%2?"#383838":"transparent"}}>
             <LkIco size={11}/><FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:"#EEE"}}>{f.name}</span>
-            <div className="flex justify-center"><BellIco active onClick={() => toggleWatch(f.name)} size={13}/></div>
-            <Av user={{name:f.ownerName,color:f.ownerColor}} size={15}/><span className="truncate" style={{fontSize:10,color:f.ownerColor,fontWeight:600}}>{dn(f.ownerName, f.ownerUsername)}</span>
+            <div className="flex justify-center"><BellIco active onClick={()=>toggleWatch(f.name)} size={13}/></div>
+            <Av user={{name:f.ownerName,color:f.ownerColor}} size={15}/><span className="truncate" style={{fontSize:10,color:f.ownerColor,fontWeight:600}}>{dn(f.ownerName,f.ownerUsername)}</span>
           </div>)}
         </>}
-
-        {/* + button */}
         <div className="flex justify-end" style={{padding:"4px 6px"}}>
-          <div onClick={() => { setAddOpen(!addOpen); haptic('light'); }} className="flex items-center gap-0.5 cursor-pointer" style={{height:18,padding:"0 5px",background:"#383838",border:"1px solid #303030",borderRadius:3,color:"#D2D2D2",fontSize:12,lineHeight:1}}>+<span style={{fontSize:8,marginTop:1}}>{addOpen?"▲":"▼"}</span></div>
+          <div onClick={()=>{setAddOpen(!addOpen);haptic('light');}} className="flex items-center gap-0.5 cursor-pointer" style={{height:18,padding:"0 5px",background:"#383838",border:"1px solid #303030",borderRadius:3,color:"#D2D2D2",fontSize:12,lineHeight:1}}>+<span style={{fontSize:8,marginTop:1}}>{addOpen?"▲":"▼"}</span></div>
         </div>
-
-        {/* Inline add panel */}
-        {addOpen && <div style={{padding:"4px 6px",background:"#353535",borderTop:"1px solid #282828",borderBottom:"1px solid #282828"}}>
-          <textarea rows={2} placeholder="Level_05.unity, Rock.prefab" value={input} onChange={e => setInput(e.target.value)} style={{width:"100%",boxSizing:"border-box",padding:"4px 6px",background:"#3F3F3F",border:"1px solid #232323",borderRadius:3,color:"#D2D2D2",fontSize:11,fontFamily:"Consolas,monospace",resize:"none",outline:"none",lineHeight:"16px"}}/>
-          {typed.length > 0 && <div style={{marginTop:2}}>{typed.map((n,i) => {
-            const k = toKey(n); const b = files[k] && files[k].ownerId !== me.id; const m = files[k] && files[k].ownerId === me.id;
-            return <div key={i} className="flex items-center gap-1" style={{height:18}}><FIcon ext={getExt(n)} size={14}/><span className="flex-1" style={{fontSize:11,color:b?"#E8A04C":m?"#58B258":"#D2D2D2"}}>{n}</span>{b && <><BellIco active size={12}/><span style={{fontSize:9,color:"#E8A04C",fontWeight:600}}>{dn(files[k].ownerName, files[k].ownerUsername)}</span></>}{m && <span style={{fontSize:9,color:"#58B258"}}>yours</span>}</div>;
-          })}</div>}
+        {addOpen&&<div style={{padding:"4px 6px",background:"#353535",borderTop:"1px solid #282828",borderBottom:"1px solid #282828"}}>
+          <textarea rows={2} placeholder="Level_05.unity, Rock.prefab" value={input} onChange={e=>setInput(e.target.value)} style={{width:"100%",boxSizing:"border-box",padding:"4px 6px",background:"#3F3F3F",border:"1px solid #232323",borderRadius:3,color:"#D2D2D2",fontSize:11,fontFamily:"Consolas,monospace",resize:"none",outline:"none",lineHeight:"16px"}}/>
+          {typed.length>0&&<div style={{marginTop:2}}>{typed.map((n,i)=>{const k=toKey(n);const b=files[k]&&files[k].ownerId!==me.id;const m=files[k]&&files[k].ownerId===me.id;return<div key={i} className="flex items-center gap-1" style={{height:18}}><FIcon ext={getExt(n)} size={14}/><span className="flex-1" style={{fontSize:11,color:b?"#E8A04C":m?"#58B258":"#D2D2D2"}}>{n}</span>{b&&<><BellIco active size={12}/><span style={{fontSize:9,color:"#E8A04C",fontWeight:600}}>{dn(files[k].ownerName,files[k].ownerUsername)}</span></>}{m&&<span style={{fontSize:9,color:"#58B258"}}>yours</span>}</div>;})}</div>}
           <div style={{fontSize:9,fontWeight:600,color:"#7A7A7A",textTransform:"uppercase",marginTop:4,marginBottom:2}}>Saved</div>
-          <div className="flex flex-wrap gap-0.5">{saved.map(n => {
-            const k = toKey(n); const act = files[k]; const im = act && act.ownerId === me.id; const on = sel.has(n);
-            return <div key={n} onClick={() => togSel(n)} className="flex items-center gap-1 cursor-pointer" style={{padding:"2px 4px",background:on?"#46607C":"#3F3F3F",borderRadius:3,border:`1px solid ${on?"#7BAEFA":"transparent"}`,opacity:im?.5:1}}>
-              <FIcon ext={getExt(n)} size={13}/><span style={{fontSize:10,color:"#D2D2D2"}}>{n.replace(/\.[^.]+$/,"")}</span><span style={{fontSize:9,color:"#7A7A7A"}}>.{getExt(n)}</span>
-              {act && !im && <LkIco size={9}/>}{on && <span style={{fontSize:9,color:"#7BAEFA",fontWeight:700}}>✓</span>}
-              <button onClick={e => { e.stopPropagation(); rmSaved(n); }} style={{background:"none",border:"none",color:"#585858",fontSize:11,cursor:"pointer",padding:"0 1px",lineHeight:1}}>×</button>
-            </div>;
-          })}</div>
-          {hasAny && <button onClick={submit} style={{width:"100%",height:22,borderRadius:3,border:"1px solid #303030",background:"#46607C",color:"#EEE",fontSize:11,fontWeight:600,cursor:"pointer",marginTop:4}}>Busy ({[...new Set([...typed,...sel])].length})</button>}
+          <div className="flex flex-wrap gap-0.5">{saved.map(n=>{const k=toKey(n);const act=files[k];const im=act&&act.ownerId===me.id;const on=sel.has(n);return<div key={n} onClick={()=>togSel(n)} className="flex items-center gap-1 cursor-pointer" style={{padding:"2px 4px",background:on?"#46607C":"#3F3F3F",borderRadius:3,border:`1px solid ${on?"#7BAEFA":"transparent"}`,opacity:im?.5:1}}><FIcon ext={getExt(n)} size={13}/><span style={{fontSize:10,color:"#D2D2D2"}}>{n.replace(/\.[^.]+$/,"")}</span><span style={{fontSize:9,color:"#7A7A7A"}}>.{getExt(n)}</span>{act&&!im&&<LkIco size={9}/>}{on&&<span style={{fontSize:9,color:"#7BAEFA",fontWeight:700}}>✓</span>}<button onClick={e=>{e.stopPropagation();rmSaved(n);}} style={{background:"none",border:"none",color:"#585858",fontSize:11,cursor:"pointer",padding:"0 1px",lineHeight:1}}>×</button></div>;})}</div>
+          {hasAny&&<button onClick={submit} style={{width:"100%",height:22,borderRadius:3,border:"1px solid #303030",background:"#46607C",color:"#EEE",fontSize:11,fontWeight:600,cursor:"pointer",marginTop:4}}>Busy ({[...new Set([...typed,...sel])].length})</button>}
         </div>}
-
-        {/* LOCKED */}
-        {groups.length > 0 && <div className="flex items-center" style={{padding:"6px 6px 2px"}}><span style={{fontSize:9,fontWeight:600,color:"#7A7A7A",textTransform:"uppercase",letterSpacing:".04em"}}>Locked ({others.length})</span></div>}
-        {groups.map(g => {
-          const uid = g.owner.id; const isExp = !!expanded[uid];
-          const vis = isExp ? g.files : g.files.slice(0, CL);
-          const more = g.files.length > CL;
-          return <div key={uid} style={{borderTop:"1px solid #3C3C3C",marginTop:2}}>
-            <div className={`flex items-center gap-1.5 cursor-pointer ${hoverClass}`} style={{padding:"4px 6px",background:"#282828"}} onClick={() => more && togExp(uid)}>
-              <span style={{fontSize:10,color:"#7A7A7A"}}>{g.files.length}</span>
-              {more && <Chev open={isExp}/>}
-              <div className="flex-1"/>
-              <span className="font-semibold" style={{fontSize:11,color:g.owner.color}}>{dn(g.owner.name, g.owner.username)}</span>
-              <Av user={g.owner} size={18}/>
-            </div>
-            {vis.map(([k,f],i) => <div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"13px 16px 1fr 20px",height:18,padding:"0 4px 0 14px",columnGap:3,background:i%2?"#383838":"transparent"}}>
-              <LkIco size={11}/><FIcon ext={getExt(f.name)} size={14}/><span className="truncate" style={{fontSize:11,color:"#D2D2D2"}}>{f.name}</span>
-              <div className="flex justify-center"><BellIco active={isW(k)} onClick={() => toggleWatch(f.name)} size={13}/></div>
-            </div>)}
-            {more && !isExp && <div className="cursor-pointer" style={{padding:"1px 14px 3px",fontSize:10,color:"#7BAEFA",background:"#282828"}} onClick={() => togExp(uid)}>+ {g.files.length - CL} more</div>}
-          </div>;
-        })}
+        {groups.length>0&&<div className="flex items-center" style={{padding:"6px 6px 2px"}}><span style={{fontSize:9,fontWeight:600,color:"#7A7A7A",textTransform:"uppercase",letterSpacing:".04em"}}>Locked ({others.length})</span></div>}
+        {groups.map(g=>{const uid=g.owner.id;const isExp=!!expanded[uid];const vis=isExp?g.files:g.files.slice(0,CL);const more=g.files.length>CL;return<div key={uid} style={{borderTop:"1px solid #3C3C3C",marginTop:2}}>
+          <div className={`flex items-center gap-1.5 cursor-pointer ${hoverClass}`} style={{padding:"4px 6px",background:"#282828"}} onClick={()=>more&&togExp(uid)}>
+            <span style={{fontSize:10,color:"#7A7A7A"}}>{g.files.length}</span>{more&&<Chev open={isExp}/>}<div className="flex-1"/>
+            <span className="font-semibold" style={{fontSize:11,color:g.owner.color}}>{dn(g.owner.name,g.owner.username)}</span><Av user={g.owner} size={18}/>
+          </div>
+          {vis.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"13px 16px 1fr 20px",height:18,padding:"0 4px 0 14px",columnGap:3,background:i%2?"#383838":"transparent"}}>
+            <LkIco size={11}/><FIcon ext={getExt(f.name)} size={14}/><span className="truncate" style={{fontSize:11,color:"#D2D2D2"}}>{f.name}</span>
+            <div className="flex justify-center"><BellIco active={isW(k)} onClick={()=>toggleWatch(f.name)} size={13}/></div>
+          </div>)}
+          {more&&!isExp&&<div className="cursor-pointer" style={{padding:"1px 14px 3px",fontSize:10,color:"#7BAEFA",background:"#282828"}} onClick={()=>togExp(uid)}>+ {g.files.length-CL} more</div>}
+        </div>;})}
       </div>
     </div>
   );

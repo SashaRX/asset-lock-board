@@ -1,12 +1,8 @@
 {
   "rules": {
-    "files": {
-      ".read": true,
-      ".write": true
-    },
-    "saved": {
-      ".read": true,
-      ".write": true
-    }
+    "files": { ".read": true, ".write": true },
+    "saved": { ".read": true, ".write": true },
+    "users": { ".read": true, ".write": true },
+    "boards": { ".read": true, ".write": true }
   }
 }
