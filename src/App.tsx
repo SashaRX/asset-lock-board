@@ -182,10 +182,11 @@ export default function App() {
 
   return (
     <div id="pip-host">
-    <div ref={contentRef} className="min-h-screen relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
+    {pipWin && <div style={{minHeight:'100vh',background:'#282828',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}><span style={{color:'#585858',fontSize:12}}>Board pinned on top</span></div>}
+    <div ref={contentRef} className={pipWin?'':'min-h-screen'} style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif",display:pipWin?'none':undefined}}>
       {menuOpen&&<div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:40}}/>}
-      <div className="flex items-center gap-1.5 px-2" style={{height:32,background:"#191919",borderBottom:"1px solid #232323",WebkitAppRegion:'drag' as any,appRegion:'drag' as any,paddingLeft:'env(titlebar-area-x, 8px)',width:'env(titlebar-area-width, 100%)'}}>
-        <LkIco size={13}/><span className="flex-1 font-semibold" style={{fontSize:12,color:"#D2D2D2"}}>Asset Lock Board</span>
+      <div className="flex items-center gap-1.5" style={{height:'env(titlebar-area-height, 32px)',background:"#191919",borderBottom:"1px solid #232323",WebkitAppRegion:'drag' as any,appRegion:'drag' as any,position:'fixed',top:'env(titlebar-area-y, 0)',left:'env(titlebar-area-x, 0)',width:'env(titlebar-area-width, 100%)',zIndex:30,paddingLeft:8,paddingRight:8,boxSizing:'border-box'}}>
+        <LkIco size={13}/><span className="flex-1 font-semibold truncate" style={{fontSize:12,color:"#D2D2D2",minWidth:0}}>Lock Board</span>
         <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"1px 5px",borderRadius:3,lineHeight:"16px",WebkitAppRegion:'no-drag' as any}}>{entries.length}</span>
         {'documentPictureInPicture' in window && <svg onClick={togglePip} width={14} height={14} viewBox="0 0 16 16" className="shrink-0 cursor-pointer" style={{WebkitAppRegion:'no-drag' as any,opacity:pipWin?.9:.5}} title="Pin on top"><rect x="1" y="1" width="14" height="10" rx="1.5" fill="none" stroke={pipWin?"#7BAEFA":"#7A7A7A"} strokeWidth="1.3"/><rect x="8" y="5" width="7" height="5" rx="1" fill={pipWin?"#7BAEFA":"#7A7A7A"}/></svg>}
         <div className="relative" style={{WebkitAppRegion:'no-drag' as any}}>
@@ -200,6 +201,7 @@ export default function App() {
         </div>
       </div>
       {notif&&<div style={{background:"#2D5A3D",color:"#A8E6A1",fontSize:10,padding:"2px 6px",textAlign:"center"}}>{notif}</div>}
+      <div style={{paddingTop:'env(titlebar-area-height, 32px)'}}>
       <div style={{background:"#303030"}}>
         {entries.length===0&&<div style={{padding:16,textAlign:"center",color:"#585858",fontSize:11}}>No active files</div>}
         {(mine.length>0||ghosts.length>0)&&<>
@@ -242,6 +244,7 @@ export default function App() {
           {more&&!isExp&&<div className="cursor-pointer" style={{padding:"1px 14px 3px",fontSize:10,color:"#7BAEFA",background:"#282828"}} onClick={()=>togExp(uid)}>+ {g.files.length-CL} more</div>}
         </div>;})}
       </div>
+    </div>
     </div>
     </div>
   );
