@@ -157,10 +157,10 @@ export default function App() {
   return (
     <div className="min-h-screen relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
       {menuOpen&&<div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:40}}/>}
-      <div className="flex items-center gap-1.5 px-2" style={{height:32,background:"#191919",borderBottom:"1px solid #232323"}}>
+      <div className="flex items-center gap-1.5 px-2" style={{height:32,background:"#191919",borderBottom:"1px solid #232323",WebkitAppRegion:'drag' as any,appRegion:'drag' as any,paddingLeft:'env(titlebar-area-x, 8px)',width:'env(titlebar-area-width, 100%)'}}>
         <LkIco size={13}/><span className="flex-1 font-semibold" style={{fontSize:12,color:"#D2D2D2"}}>Asset Lock Board</span>
-        <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"1px 5px",borderRadius:3,lineHeight:"16px"}}>{entries.length}</span>
-        <div className="relative">
+        <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"1px 5px",borderRadius:3,lineHeight:"16px",WebkitAppRegion:'no-drag' as any}}>{entries.length}</span>
+        <div className="relative" style={{WebkitAppRegion:'no-drag' as any}}>
           <div onClick={()=>setMenuOpen(!menuOpen)} className="flex items-center gap-1.5 cursor-pointer" style={{padding:"2px 6px",borderRadius:4,height:24,background:menuOpen?"#3F3F3F":"transparent"}}>
             <Av user={me} size={20}/><span style={{fontSize:11,color:"#D2D2D2",maxWidth:90}} className="truncate">{dn(me.name,me.username)}</span>
             <svg width={9} height={9} viewBox="0 0 16 16" style={{transform:menuOpen?"rotate(180deg)":"",transition:"transform .15s"}}><path d="M4 6l4 4 4-4" fill="none" stroke="#7A7A7A" strokeWidth="2" strokeLinecap="round"/></svg>

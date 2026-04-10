@@ -4,6 +4,7 @@
   "start_url": "/asset-lock-board/",
   "scope": "/asset-lock-board/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay"],
   "background_color": "#282828",
   "theme_color": "#191919",
   "icons": [
