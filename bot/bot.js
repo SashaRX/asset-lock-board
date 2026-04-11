@@ -429,3 +429,5 @@ loadBoards().then(async () => {
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.on('unhandledRejection', (e) => console.error('Unhandled rejection:', e));
+process.on('uncaughtException', (e) => console.error('Uncaught exception:', e));

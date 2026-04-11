@@ -1,0 +1,12 @@
+services:
+  - type: worker
+    name: asset-lock-board-bot
+    runtime: node
+    rootDir: bot
+    buildCommand: npm install
+    startCommand: node bot.js
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: NODE_ENV
+        value: production
