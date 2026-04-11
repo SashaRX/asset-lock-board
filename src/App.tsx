@@ -440,16 +440,16 @@ export default function App() {
             <span style={{fontSize:9,fontWeight:600,color:T.textDim,textTransform:"uppercase",letterSpacing:".04em"}}>Your files ({mine.length}){ghosts.length>0&&<span style={{color:T.accentOrange}}> +{ghosts.length}</span>}</span>
             {mine.length>1&&<button onClick={freeAll} style={{height:14,padding:"0 5px",borderRadius:3,border:`1px solid ${T.bgMid}`,background:T.textMuted,color:T.textBright,fontSize:9,cursor:"pointer",lineHeight:"12px"}}>Free All</button>}
           </div>
-          {mine.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"18px 1fr 46px 20px 32px 42px",height:18,padding:"0 6px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
-            <FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:T.textBright}}>{f.name}</span>
-            <div className="flex items-center gap-1 cursor-pointer" onClick={()=>update(ref(db),{[`files/${k}/mode`]:f.mode==='lock'?'busy':'lock'})} title={f.mode==='lock'?'Lock → Busy':'Busy → Lock'}><LkIco size={9} mode={f.mode||'busy'}/><span style={{fontSize:9,color:f.mode==='lock'?T.lockRed:T.accentOrange}}>{f.mode==='lock'?'Lock':'Busy'}</span></div>
+          {mine.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"18px 1fr 20px 32px 42px",height:18,padding:"0 6px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
+            <FIcon ext={getExt(f.name)} size={16}/>
+            <div className="flex items-center gap-1.5 min-w-0"><span className="truncate" style={{fontSize:11,color:T.textBright}}>{f.name}</span><div className="flex items-center gap-0.5 shrink-0 cursor-pointer" onClick={()=>update(ref(db),{[`files/${k}/mode`]:f.mode==='lock'?'busy':'lock'})} title={f.mode==='lock'?'Lock → Busy':'Busy → Lock'}><LkIco size={9} mode={f.mode||'busy'}/><span style={{fontSize:9,color:f.mode==='lock'?T.lockRed:T.accentOrange}}>{f.mode==='lock'?'Lock':'Busy'}</span></div></div>
             <div className="flex items-center justify-center">{Object.keys(f.watchers||{}).length>0&&<BellIco active size={13}/>}</div>
             <span style={{fontSize:9,color:T.textDim,textAlign:"right",lineHeight:"18px"}}>{fmt(f.since)}</span>
             <button onClick={()=>freeFile(f.name)} style={{height:14,borderRadius:3,border:`1px solid ${T.bgMid}`,background:T.textMuted,color:T.textBright,fontSize:9,cursor:"pointer",padding:0}}>Free</button>
           </div>)}
-          {ghosts.map(([k,f],i)=><div key={k} className={rowStyle} style={{gridTemplateColumns:"18px 1fr 46px 20px 18px 38px",height:18,padding:"0 6px",columnGap:3,opacity:.45,background:(mine.length+i)%2?T.bgRow:"transparent"}}>
-            <FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:T.textBright}}>{f.name}</span>
-            <div className="flex items-center gap-1"><LkIco size={9} mode={f.mode||'busy'}/><span style={{fontSize:9,color:f.mode==='lock'?T.lockRed:T.accentOrange}}>{f.mode==='lock'?'Lock':'Busy'}</span></div>
+          {ghosts.map(([k,f],i)=><div key={k} className={rowStyle} style={{gridTemplateColumns:"18px 1fr 20px 18px 38px",height:18,padding:"0 6px",columnGap:3,opacity:.45,background:(mine.length+i)%2?T.bgRow:"transparent"}}>
+            <FIcon ext={getExt(f.name)} size={16}/>
+            <div className="flex items-center gap-1.5 min-w-0"><span className="truncate" style={{fontSize:11,color:T.textBright}}>{f.name}</span><div className="flex items-center gap-0.5 shrink-0"><LkIco size={9} mode={f.mode||'busy'}/><span style={{fontSize:9,color:f.mode==='lock'?T.lockRed:T.accentOrange}}>{f.mode==='lock'?'Lock':'Busy'}</span></div></div>
             <div className="flex items-center justify-center"><BellIco active onClick={()=>toggleWatch(f.name)} size={13}/></div>
             <Av user={{name:f.ownerName,color:f.ownerColor}} size={15}/><span className="truncate" style={{fontSize:10,color:f.ownerColor,fontWeight:600}}>{dn(f.ownerName,f.ownerUsername)}</span>
           </div>)}
@@ -477,9 +477,9 @@ export default function App() {
             <span style={{fontSize:10,color:T.textDim}}>{g.files.length}</span>{more&&<Chev open={isExp}/>}<div className="flex-1"/>
             <span className="font-semibold" style={{fontSize:11,color:g.owner.color}}>{dn(g.owner.name,g.owner.username)}</span><Av user={g.owner} size={18}/>
           </div>
-          {vis.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:isAdmin?"16px 1fr 46px 20px 32px":"16px 1fr 46px 20px",height:18,padding:"0 4px 0 14px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
-            <FIcon ext={getExt(f.name)} size={14}/><span className="truncate" style={{fontSize:11,color:T.text}}>{f.name}</span>
-            <div className="flex items-center gap-1"><LkIco size={9} mode={f.mode||'busy'}/><span style={{fontSize:9,color:f.mode==='lock'?T.lockRed:T.accentOrange}}>{f.mode==='lock'?'Lock':'Busy'}</span></div>
+          {vis.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:isAdmin?"16px 1fr 20px 32px":"16px 1fr 20px",height:18,padding:"0 4px 0 14px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
+            <FIcon ext={getExt(f.name)} size={14}/>
+            <div className="flex items-center gap-1.5 min-w-0"><span className="truncate" style={{fontSize:11,color:T.text}}>{f.name}</span><div className="flex items-center gap-0.5 shrink-0"><LkIco size={9} mode={f.mode||'busy'}/><span style={{fontSize:9,color:f.mode==='lock'?T.lockRed:T.accentOrange}}>{f.mode==='lock'?'Lock':'Busy'}</span></div></div>
             <div className="flex items-center justify-center"><BellIco active={isW(k)} onClick={()=>toggleWatch(f.name)} size={13}/></div>
             {isAdmin&&<button onClick={()=>freeFile(f.name)} style={{height:14,borderRadius:3,border:`1px solid ${T.bgMid}`,background:T.textMuted,color:T.textBright,fontSize:9,cursor:"pointer",padding:0}}>Free</button>}
           </div>)}
