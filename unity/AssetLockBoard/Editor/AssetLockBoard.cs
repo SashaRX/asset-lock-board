@@ -283,7 +283,7 @@ namespace AssetLockBoard.Editor
             EditorGUI.DrawRect(headerRect, C_BgDark);
             GUILayout.Space(6);
             GUI.color = C_Text;
-            GUILayout.Label($"\U0001F512 Lock Board", EditorStyles.boldLabel, GUILayout.Height(28));
+            GUILayout.Label($"Lock Board", EditorStyles.boldLabel, GUILayout.Height(28));
             GUI.color = Color.white;
 
             // File count badge
@@ -331,13 +331,13 @@ namespace AssetLockBoard.Editor
                     if (fd == null)
                     {
                         GUI.backgroundColor = LockMode == "lock" ? C_Red : C_Orange;
-                        if (GUILayout.Button(LockMode == "lock" ? "\U0001F512" : "\U0001F536", EditorStyles.miniButton, GUILayout.Width(26))) DoLock(filename);
+                        if (GUILayout.Button(LockMode == "lock" ? "L" : "B", EditorStyles.miniButton, GUILayout.Width(26))) DoLock(filename);
                         GUI.backgroundColor = Color.white;
                     }
                     else if (fd.ownerId == UserId)
                     {
                         GUI.color = fd.IsLock ? C_Red : C_Orange;
-                        if (GUILayout.Button(fd.IsLock ? "\U0001F512" : "\U0001F536", EditorStyles.miniButton, GUILayout.Width(26)))
+                        if (GUILayout.Button(fd.IsLock ? "L" : "B", EditorStyles.miniButton, GUILayout.Width(26)))
                             Put($"files/{key}/mode.json", $"\"{(fd.IsLock ? "busy" : "lock")}\"", _ => Refresh());
                         GUI.color = Color.white;
                         if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(36))) DoFree(filename);
@@ -346,7 +346,7 @@ namespace AssetLockBoard.Editor
                     {
                         var disp = !string.IsNullOrEmpty(fd.ownerUsername) ? $"@{fd.ownerUsername}" : fd.ownerName;
                         GUI.color = fd.IsLock ? C_Red : C_Orange;
-                        GUILayout.Label($"{(fd.IsLock ? "\U0001F512" : "\U0001F536")} {disp}", _dimLabel);
+                        GUILayout.Label($"{(fd.IsLock ? "L" : "B")} {disp}", _dimLabel);
                         GUI.color = Color.white;
                     }
                     GUILayout.Space(4);
@@ -389,7 +389,7 @@ namespace AssetLockBoard.Editor
                 _lockInput = EditorGUILayout.TextField(_lockInput);
                 var canLock = !string.IsNullOrWhiteSpace(_lockInput) && _lockInput.Contains(".");
                 EditorGUI.BeginDisabledGroup(!canLock);
-                if (GUILayout.Button(LockMode == "lock" ? "\U0001F512" : "\U0001F536", GUILayout.Width(28)))
+                if (GUILayout.Button(LockMode == "lock" ? "L" : "B", GUILayout.Width(28)))
                 { DoLock(_lockInput.Trim()); _lockInput = ""; _showLockInput = false; }
                 EditorGUI.EndDisabledGroup();
                 GUILayout.Space(4);
@@ -421,22 +421,22 @@ namespace AssetLockBoard.Editor
                     var rowRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(ROW_H));
                     DrawRowBg(rowRect, i);
                     GUILayout.Space(4);
-                    // Mode icon (clickable)
-                    GUI.color = file.IsLock ? C_Red : C_Orange;
-                    if (GUILayout.Button(file.IsLock ? "\U0001F512" : "\u25C6", EditorStyles.miniLabel, GUILayout.Width(14)))
-                        Put($"files/{key}/mode.json", $"\"{(file.IsLock ? "busy" : "lock")}\"", _ => Refresh());
-                    GUI.color = Color.white;
-                    // Asset icon
+                    // Asset icon first
                     GUILayout.Label(FileIcon(file.name), GUILayout.Width(16), GUILayout.Height(16));
                     // Name
                     GUILayout.Label(file.name, _rowLabel);
                     GUILayout.FlexibleSpace();
+                    // Mode tag (clickable to toggle)
+                    GUI.color = file.IsLock ? C_Red : C_Orange;
+                    if (GUILayout.Button(file.IsLock ? "L" : "B", EditorStyles.miniButton, GUILayout.Width(20)))
+                        Put($"files/{key}/mode.json", $"\"{(file.IsLock ? "busy" : "lock")}\"", _ => Refresh());
+                    GUI.color = Color.white;
                     // Watchers
                     if (file.watcherCount > 0)
                     {
-                        GUI.color = C_Orange;
-                        GUILayout.Label($"\U0001F514", GUILayout.Width(14));
-                        GUI.color = Color.white;
+                        _dimLabel.normal.textColor = C_Orange;
+                        GUILayout.Label($"\u266A", _dimLabel, GUILayout.Width(14));
+                        _dimLabel.normal.textColor = C_TextDim;
                     }
                     // Time
                     GUILayout.Label(Fmt(file.since), _dimLabel, GUILayout.Width(36));
@@ -480,12 +480,12 @@ namespace AssetLockBoard.Editor
                         var rowRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(ROW_H));
                         DrawRowBg(rowRect, idx++);
                         GUILayout.Space(16);
-                        GUI.color = file.IsLock ? C_Red : C_Orange;
-                        GUILayout.Label(file.IsLock ? "\U0001F512" : "\u25C6", GUILayout.Width(14));
-                        GUI.color = Color.white;
                         GUILayout.Label(FileIcon(file.name), GUILayout.Width(16), GUILayout.Height(16));
                         GUILayout.Label(file.name, _rowLabel);
                         GUILayout.FlexibleSpace();
+                        GUI.color = file.IsLock ? C_Red : C_Orange;
+                        GUILayout.Label(file.IsLock ? "L" : "B", _dimLabel, GUILayout.Width(14));
+                        GUI.color = Color.white;
                         GUILayout.Label(Fmt(file.since), _dimLabel, GUILayout.Width(36));
                         GUILayout.Space(4);
                         EditorGUILayout.EndHorizontal();
@@ -517,9 +517,14 @@ namespace AssetLockBoard.Editor
             return c;
         }
 
+        static readonly Dictionary<string, GUIContent> _iconCache = new();
+
         static GUIContent FileIcon(string filename)
         {
-            // Try to find the actual asset in the project
+            if (_iconCache.TryGetValue(filename, out var cached)) return cached;
+
+            GUIContent result = null;
+            // Try to find actual asset (once, cached)
             var guids = AssetDatabase.FindAssets(System.IO.Path.GetFileNameWithoutExtension(filename));
             foreach (var guid in guids)
             {
@@ -527,25 +532,29 @@ namespace AssetLockBoard.Editor
                 if (System.IO.Path.GetFileName(path) == filename)
                 {
                     var icon = AssetDatabase.GetCachedIcon(path);
-                    if (icon != null) return new GUIContent(icon);
+                    if (icon != null) { result = new GUIContent(icon); break; }
                 }
             }
-            // Fallback: type-based icon
-            var ext = System.IO.Path.GetExtension(filename).ToLowerInvariant();
-            var t = ext switch
+            if (result == null)
             {
-                ".unity" => typeof(SceneAsset),
-                ".prefab" => typeof(GameObject),
-                ".mat" => typeof(Material),
-                ".cs" => typeof(MonoScript),
-                ".shader" or ".compute" => typeof(Shader),
-                ".png" or ".jpg" or ".jpeg" or ".tga" or ".psd" or ".exr" => typeof(Texture2D),
-                ".anim" => typeof(AnimationClip),
-                ".asset" => typeof(ScriptableObject),
-                ".wav" or ".mp3" or ".ogg" => typeof(AudioClip),
-                _ => typeof(DefaultAsset),
-            };
-            return EditorGUIUtility.ObjectContent(null, t);
+                var ext = System.IO.Path.GetExtension(filename).ToLowerInvariant();
+                var t = ext switch
+                {
+                    ".unity" => typeof(SceneAsset),
+                    ".prefab" => typeof(GameObject),
+                    ".mat" => typeof(Material),
+                    ".cs" => typeof(MonoScript),
+                    ".shader" or ".compute" => typeof(Shader),
+                    ".png" or ".jpg" or ".jpeg" or ".tga" or ".psd" or ".exr" => typeof(Texture2D),
+                    ".anim" => typeof(AnimationClip),
+                    ".asset" => typeof(ScriptableObject),
+                    ".wav" or ".mp3" or ".ogg" => typeof(AudioClip),
+                    _ => typeof(DefaultAsset),
+                };
+                result = EditorGUIUtility.ObjectContent(null, t);
+            }
+            _iconCache[filename] = result;
+            return result;
         }
 
         // --- JSON ---
