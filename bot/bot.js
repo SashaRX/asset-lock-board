@@ -76,7 +76,8 @@ async function syncUserProfile(ctx) {
       ).catch(() => {});
     }
   } catch (e) { console.error('Photo error:', e.message); }
-  await set(ref(db, `users/${u.id}`), profile);
+  // Use update to preserve isAdmin, notifyPref, createdAt etc.
+  await fbUpdate(ref(db, `users/${u.id}`), profile);
 }
 
 
