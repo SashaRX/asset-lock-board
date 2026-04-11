@@ -109,9 +109,19 @@ namespace AssetLockBoard.Editor
             {
                 if (isFolder)
                 {
-                    // Tree view (left panel): small badge bottom-left of folder icon
-                    var iconRect = new Rect(rect.x, rect.y + rect.height - 9, 8, 8);
+                    // Tree view: icon + name after folder name
+                    if (_nameStyle == null)
+                        _nameStyle = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleLeft, fontSize = 9 };
+                    _nameStyle.normal.textColor = isMine
+                        ? new Color(0.35f, 0.70f, 0.35f)
+                        : isLock ? new Color(0.83f, 0.33f, 0.33f)
+                        : new Color(0.91f, 0.63f, 0.30f);
+                    var nameW = Mathf.Min(_nameStyle.CalcSize(new GUIContent(display)).x + 4, 80f);
+                    var folderNameW = EditorStyles.label.CalcSize(new GUIContent(filename)).x;
+                    var startX = rect.x + 16 + folderNameW + 4; // after icon + name + gap
+                    var iconRect = new Rect(startX, rect.y + (rect.height - 12) / 2f, 12, 12);
                     GUI.DrawTexture(iconRect, tex, ScaleMode.ScaleToFit);
+                    GUI.Label(new Rect(iconRect.xMax + 2, rect.y, nameW, rect.height), display, _nameStyle);
                 }
                 else
                 {
