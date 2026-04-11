@@ -1,0 +1,32 @@
+{
+  "rules": {
+    "files": {
+      ".read": true,
+      "$key": {
+        ".write": true
+      }
+    },
+    "saved": {
+      ".read": true,
+      "$key": {
+        ".write": true
+      }
+    },
+    "users": {
+      ".read": true,
+      "$uid": {
+        ".write": true
+      }
+    },
+    "boards": {
+      ".read": true,
+      "$chatId": {
+        ".write": true
+      }
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

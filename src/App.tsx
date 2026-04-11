@@ -25,6 +25,15 @@ const T = {
   lockRed: '#D32222',
   iconLight: '#C0C0C0',
   font: "Inter,'Segoe UI',system-ui,sans-serif",
+  bgHover: '#4A4A4A',
+  bgSel: '#46607C',
+  borderInput: '#505050',
+  textSec: '#AAA',
+  accentBlue: '#4A90D9',
+  iconDim: '#888',
+  toastBg: '#2D5A3D',
+  toastText: '#A8E6A1',
+  white: '#fff',
   monoFont: "Consolas,monospace",
 } as const;
 
@@ -48,13 +57,13 @@ function Av({user,size=18}:{user:{name:string;color:string;photo?:string};size?:
   return <span className="shrink-0 inline-flex items-center justify-center rounded-full font-bold text-white" style={{width:size,height:size,background:user.color,fontSize:size*.55}}>{user.name[0]}</span>;
 }
 function LkIco({size=13}:{size?:number}) {
-  return <svg width={size} height={size} viewBox="0 0 16 16" className="shrink-0 block"><rect x="2" y="7" width="12" height="8" rx="1.5" fill="#D32222" opacity=".85"/><path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="#D32222" strokeWidth="1.5" strokeLinecap="round" opacity=".85"/></svg>;
+  return <svg width={size} height={size} viewBox="0 0 16 16" className="shrink-0 block"><rect x="2" y="7" width="12" height="8" rx="1.5" fill={T.lockRed} opacity=".85"/><path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke={T.lockRed} strokeWidth="1.5" strokeLinecap="round" opacity=".85"/></svg>;
 }
 function BellIco({active,onClick,size=15}:{active:boolean;onClick?:()=>void;size?:number}) {
-  return <svg width={size} height={size} viewBox="0 0 16 16" onClick={e=>{e.stopPropagation();onClick?.();}} className="shrink-0 block transition-opacity" style={{opacity:active?.95:.18,cursor:onClick?"pointer":"default"}}><path d="M8 1.5A4 4 0 0 0 4 5.5v2.5L2.5 10.5h11L12 8V5.5A4 4 0 0 0 8 1.5z" fill={active?"#E8A04C":"#D2D2D2"}/><ellipse cx="8" cy="13" rx="1.5" ry="1" fill={active?"#E8A04C":"#D2D2D2"}/></svg>;
+  return <svg width={size} height={size} viewBox="0 0 16 16" onClick={e=>{e.stopPropagation();onClick?.();}} className="shrink-0 block transition-opacity" style={{opacity:active?.95:.18,cursor:onClick?"pointer":"default"}}><path d="M8 1.5A4 4 0 0 0 4 5.5v2.5L2.5 10.5h11L12 8V5.5A4 4 0 0 0 8 1.5z" fill={active?T.accentOrange:T.text}/><ellipse cx="8" cy="13" rx="1.5" ry="1" fill={active?T.accentOrange:T.text}/></svg>;
 }
 function Chev({open}:{open:boolean}) {
-  return <svg width={10} height={10} viewBox="0 0 16 16" className="shrink-0" style={{transform:open?"rotate(180deg)":"",transition:"transform .15s"}}><path d="M4 6l4 4 4-4" fill="none" stroke="#7A7A7A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+  return <svg width={10} height={10} viewBox="0 0 16 16" className="shrink-0" style={{transform:open?"rotate(180deg)":"",transition:"transform .15s"}}><path d="M4 6l4 4 4-4" fill="none" stroke={T.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 function fmt(ts:number){const d=new Date(ts);return d.getHours().toString().padStart(2,"0")+":"+d.getMinutes().toString().padStart(2,"0");}
 function dn(name:string,username?:string){return username?`@${username}`:name;}
@@ -96,25 +105,25 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
   };
   const inTg = isTgWebApp();
   return (
-    <div style={{minHeight:'100vh',background:'#282828',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:"Inter,'Segoe UI',system-ui,sans-serif",gap:12}}>
-      <svg width={40} height={40} viewBox="0 0 32 32"><rect x="4" y="6" width="16" height="20" rx="2" fill="#4A90D9" opacity=".35"/><rect x="8" y="3" width="16" height="20" rx="2" fill="#4A90D9" opacity=".6"/><rect x="12" y="0" width="16" height="20" rx="2" fill="#4A90D9"/><rect x="17" y="8" width="6" height="5" rx="1" fill="#282828"/><path d="M19 8V6.5a1.5 1.5 0 013 0V8" fill="none" stroke="#282828" strokeWidth="1.2" strokeLinecap="round"/></svg>
-      <div style={{fontSize:16,color:'#D2D2D2',fontWeight:600,marginBottom:4}}>Asset Lock Board</div>
+    <div style={{minHeight:'100vh',background:T.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:"Inter,'Segoe UI',system-ui,sans-serif",gap:12}}>
+      <svg width={40} height={40} viewBox="0 0 32 32"><rect x="4" y="6" width="16" height="20" rx="2" fill={T.accentBlue} opacity=".35"/><rect x="8" y="3" width="16" height="20" rx="2" fill={T.accentBlue} opacity=".6"/><rect x="12" y="0" width="16" height="20" rx="2" fill={T.accentBlue}/><rect x="17" y="8" width="6" height="5" rx="1" fill={T.bg}/><path d="M19 8V6.5a1.5 1.5 0 013 0V8" fill="none" stroke={T.bg} strokeWidth="1.2" strokeLinecap="round"/></svg>
+      <div style={{fontSize:16,color:T.text,fontWeight:600,marginBottom:4}}>Asset Lock Board</div>
       {!passOk?<>
         <div style={{display:'flex',gap:6,width:250}}>
-          <input value={passInput} onChange={e=>{setPassInput(e.target.value);setPassErr(false);}} onKeyDown={e=>{if(e.key==='Enter')checkPass();}} placeholder="Team password" type="password" style={{flex:1,height:36,borderRadius:6,border:`1px solid ${passErr?'#D35555':'#505050'}`,background:'#3F3F3F',color:'#EEE',fontSize:14,padding:'0 10px',outline:'none'}}/>
-          <button onClick={checkPass} style={{height:36,borderRadius:6,border:'none',background:'#4A90D9',color:'#fff',fontSize:13,fontWeight:600,padding:'0 16px',cursor:'pointer'}}>&rarr;</button>
+          <input value={passInput} onChange={e=>{setPassInput(e.target.value);setPassErr(false);}} onKeyDown={e=>{if(e.key==='Enter')checkPass();}} placeholder="Team password" type="password" style={{flex:1,height:36,borderRadius:6,border:`1px solid ${passErr?T.accentRed:T.borderInput}`,background:T.bgInput,color:T.textBright,fontSize:14,padding:'0 10px',outline:'none'}}/>
+          <button onClick={checkPass} style={{height:36,borderRadius:6,border:'none',background:T.accentBlue,color:T.white,fontSize:13,fontWeight:600,padding:'0 16px',cursor:'pointer'}}>&rarr;</button>
         </div>
-        {passErr&&<div style={{fontSize:11,color:'#D35555',marginTop:2}}>Wrong password</div>}
+        {passErr&&<div style={{fontSize:11,color:T.accentRed,marginTop:2}}>Wrong password</div>}
       </>:<>
       <div style={{display:'flex',gap:6,width:250}}>
-        <input value={simpleName} onChange={e=>setSimpleName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleSimple();}} placeholder="Your name" style={{flex:1,height:36,borderRadius:6,border:'1px solid #505050',background:'#3F3F3F',color:'#EEE',fontSize:14,padding:'0 10px',outline:'none'}}/>
-        <button onClick={handleSimple} disabled={simpleName.trim().length<2||!/^[\p{L}\s\-'.]+$/u.test(simpleName.trim())} style={{height:36,borderRadius:6,border:'none',background:simpleName.trim().length>=2?'#4A90D9':'#3F3F3F',color:simpleName.trim().length>=2?'#fff':'#585858',fontSize:13,fontWeight:600,padding:'0 16px',cursor:simpleName.trim().length>=2?'pointer':'default'}}>Enter</button>
+        <input value={simpleName} onChange={e=>setSimpleName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleSimple();}} placeholder="Your name" style={{flex:1,height:36,borderRadius:6,border:`1px solid ${T.borderInput}`,background:T.bgInput,color:T.textBright,fontSize:14,padding:'0 10px',outline:'none'}}/>
+        <button onClick={handleSimple} disabled={simpleName.trim().length<2||!/^[\p{L}\s\-'.]+$/u.test(simpleName.trim())} style={{height:36,borderRadius:6,border:'none',background:simpleName.trim().length>=2?T.accentBlue:T.bgInput,color:simpleName.trim().length>=2?T.white:T.textMuted,fontSize:13,fontWeight:600,padding:'0 16px',cursor:simpleName.trim().length>=2?'pointer':'default'}}>Enter</button>
       </div>
       {!inTg && <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginTop:12}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,width:250}}><div style={{flex:1,borderTop:'1px solid #3F3F3F'}}/><span style={{fontSize:9,color:'#585858',whiteSpace:'nowrap'}}>or connect for notifications</span><div style={{flex:1,borderTop:'1px solid #3F3F3F'}}/></div>
+        <div style={{display:'flex',alignItems:'center',gap:8,width:250}}><div style={{flex:1,borderTop:`1px solid ${T.bgInput}`}}/><span style={{fontSize:9,color:T.textMuted,whiteSpace:'nowrap'}}>or connect for notifications</span><div style={{flex:1,borderTop:`1px solid ${T.bgInput}`}}/></div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
-          <button onClick={handleGoogle} disabled={gLoading} style={{display:'flex',alignItems:'center',gap:6,height:32,borderRadius:16,border:'none',background:'#3F3F3F',color:'#AAA',fontSize:12,cursor:gLoading?'wait':'pointer',padding:'0 12px'}}>
-            <svg width={14} height={14} viewBox="0 0 48 48"><path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill="#888"/></svg>
+          <button onClick={handleGoogle} disabled={gLoading} style={{display:'flex',alignItems:'center',gap:6,height:32,borderRadius:16,border:'none',background:T.bgInput,color:T.textSec,fontSize:12,cursor:gLoading?'wait':'pointer',padding:'0 12px'}}>
+            <svg width={14} height={14} viewBox="0 0 48 48"><path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill={T.iconDim}/></svg>
             Google
           </button>
           <div ref={wRef} style={{transform:'scale(0.85)',transformOrigin:'center'}}/>
@@ -252,7 +261,7 @@ export default function App() {
     if (!('documentPictureInPicture' in window)) return;
     const pip = await (window as any).documentPictureInPicture.requestWindow({ width: 340, height: 480 });
     const style = pip.document.createElement('style');
-    style.textContent = 'html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#282828}';
+    style.textContent = `html,body{margin:0;padding:0;height:100%;overflow:hidden;background:${T.bg}}`;
     pip.document.head.appendChild(style);
     const iframe = pip.document.createElement('iframe');
     iframe.src = window.location.href;
@@ -272,101 +281,101 @@ export default function App() {
   const grouped:Record<number,{owner:{id:number;name:string;username?:string;color:string};files:[string,FileData][]}> = {};
   others.forEach(([k,f])=>{const id=f.ownerId;if(!grouped[id])grouped[id]={owner:{id,name:f.ownerName,username:f.ownerUsername,color:f.ownerColor},files:[]};grouped[id].files.push([k,f]);});
   const groups = Object.values(grouped).sort((a,b)=>b.files.length-a.files.length);
-  const rowStyle="grid items-center",hoverClass="hover:bg-[#383838]";
+  const rowStyle="grid items-center",hoverClass=`hover:bg-[${T.bgRow}]`;
 
   return (
-    <div className="min-h-screen relative" style={{background:"#282828",fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
-      <div className="flex items-center gap-1.5" style={{height:'env(titlebar-area-height, 32px)',background:"#191919",borderBottom:"1px solid #232323",WebkitAppRegion:'drag' as any,appRegion:'drag' as any,position:'fixed',top:'env(titlebar-area-y, 0)',left:'env(titlebar-area-x, 0)',width:'env(titlebar-area-width, 100%)',zIndex:30,paddingLeft:8,paddingRight:8,boxSizing:'border-box'}}>
-        <LkIco size={13}/><span className="flex-1 font-semibold truncate" style={{fontSize:12,color:"#D2D2D2",minWidth:0}}>Lock Board</span>
-        <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"1px 5px",borderRadius:3,lineHeight:"16px",WebkitAppRegion:'no-drag' as any}}>{entries.length}</span>
-        {'documentPictureInPicture' in window && <svg onClick={togglePip} width={18} height={18} viewBox="0 0 16 16" className="shrink-0 cursor-pointer" style={{WebkitAppRegion:'no-drag' as any}} title="Pin on top"><rect x="1" y="5" width="10" height="10" rx="1.5" fill="none" stroke={pipWin?"#7BAEFA":"#C0C0C0"} strokeWidth="1.3"/><path d={`M7 9L14 2M14 2H10M14 2v4`} fill="none" stroke={pipWin?"#7BAEFA":"#C0C0C0"} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+    <div className="min-h-screen relative" style={{background:T.bg,fontFamily:"Inter,'Segoe UI',system-ui,sans-serif"}}>
+      <div className="flex items-center gap-1.5" style={{height:'env(titlebar-area-height, 32px)',background:T.bgDark,borderBottom:`1px solid ${T.border}`,WebkitAppRegion:'drag' as any,appRegion:'drag' as any,position:'fixed',top:'env(titlebar-area-y, 0)',left:'env(titlebar-area-x, 0)',width:'env(titlebar-area-width, 100%)',zIndex:30,paddingLeft:8,paddingRight:8,boxSizing:'border-box'}}>
+        <LkIco size={13}/><span className="flex-1 font-semibold truncate" style={{fontSize:12,color:T.text,minWidth:0}}>Lock Board</span>
+        <span style={{fontSize:9,color:T.textDim,background:T.bgInput,padding:"1px 5px",borderRadius:3,lineHeight:"16px",WebkitAppRegion:'no-drag' as any}}>{entries.length}</span>
+        {'documentPictureInPicture' in window && <svg onClick={togglePip} width={18} height={18} viewBox="0 0 16 16" className="shrink-0 cursor-pointer" style={{WebkitAppRegion:'no-drag' as any}} title="Pin on top"><rect x="1" y="5" width="10" height="10" rx="1.5" fill="none" stroke={pipWin?T.accent:T.iconLight} strokeWidth="1.3"/><path d={`M7 9L14 2M14 2H10M14 2v4`} fill="none" stroke={pipWin?T.accent:T.iconLight} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
         <div className="relative" style={{WebkitAppRegion:'no-drag' as any,zIndex:50}}>
-          <div onClick={()=>{if(!menuOpen){setEditName(me.name);setEditColor(me.color);setEditing(false);}setMenuOpen(!menuOpen);}} className="flex items-center gap-1.5 cursor-pointer" style={{padding:"2px 6px",borderRadius:4,height:24,background:menuOpen?"#3F3F3F":"transparent"}}>
-            <Av user={me} size={20}/><span style={{fontSize:11,color:"#D2D2D2",maxWidth:90}} className="truncate">{dn(me.name,me.username)}</span>
-            <svg width={8} height={8} viewBox="0 0 16 16" style={{transform:menuOpen?"rotate(180deg)":"",transition:"transform .15s"}}><path d="M3 5h10L8 11z" fill="#7A7A7A"/></svg>
+          <div onClick={()=>{if(!menuOpen){setEditName(me.name);setEditColor(me.color);setEditing(false);}setMenuOpen(!menuOpen);}} className="flex items-center gap-1.5 cursor-pointer" style={{padding:"2px 6px",borderRadius:4,height:24,background:menuOpen?T.bgInput:"transparent"}}>
+            <Av user={me} size={20}/><span style={{fontSize:11,color:T.text,maxWidth:90}} className="truncate">{dn(me.name,me.username)}</span>
+            <svg width={8} height={8} viewBox="0 0 16 16" style={{transform:menuOpen?"rotate(180deg)":"",transition:"transform .15s"}}><path d="M3 5h10L8 11z" fill={T.textDim}/></svg>
           </div>
-          {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0}}/><div style={{position:"absolute",right:0,top:28,background:"#3F3F3F",border:"1px solid #505050",borderRadius:6,padding:4,zIndex:1,minWidth:140,boxShadow:"0 6px 16px rgba(0,0,0,.5)"}}>
-            <div style={{padding:"6px 10px",borderBottom:"1px solid #505050",marginBottom:2}}>
+          {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0}}/><div style={{position:"absolute",right:0,top:28,background:T.bgInput,border:`1px solid ${T.borderInput}`,borderRadius:6,padding:4,zIndex:1,minWidth:140,boxShadow:"0 6px 16px rgba(0,0,0,.5)"}}>
+            <div style={{padding:"6px 10px",borderBottom:`1px solid ${T.borderInput}`,marginBottom:2}}>
               {!editing?<>
                 <div className="flex items-center gap-2">
                   <Av user={me} size={28}/>
-                  <div className="flex-1 truncate" style={{fontSize:11,color:'#D2D2D2'}}>{me.name}</div>
-                  <span onClick={()=>setEditing(true)} className="cursor-pointer" style={{fontSize:10,color:'#585858'}}>✏️</span>
+                  <div className="flex-1 truncate" style={{fontSize:11,color:T.text}}>{me.name}</div>
+                  <span onClick={()=>setEditing(true)} className="cursor-pointer" style={{fontSize:10,color:T.textMuted}}>✏️</span>
                 </div>
-                {me.username&&<div style={{fontSize:10,color:"#7A7A7A",marginTop:2,marginLeft:36}}>@{me.username}</div>}
+                {me.username&&<div style={{fontSize:10,color:T.textDim,marginTop:2,marginLeft:36}}>@{me.username}</div>}
               </>:<>
                 <div className="flex items-center gap-2" style={{marginBottom:4}}>
                   <Av user={{name:editName||me.name,color:editColor,photo:me.photo}} size={28}/>
-                  <input value={editName} onChange={e=>setEditName(e.target.value)} autoFocus style={{flex:1,background:'#353535',border:'1px solid #505050',borderRadius:3,color:'#EEE',fontSize:11,outline:'none',padding:'3px 6px'}}/>
+                  <input value={editName} onChange={e=>setEditName(e.target.value)} autoFocus style={{flex:1,background:T.bgPanel,border:`1px solid ${T.borderInput}`,borderRadius:3,color:T.textBright,fontSize:11,outline:'none',padding:'3px 6px'}}/>
                 </div>
-                {!me.photo&&<div className="flex gap-1 flex-wrap" style={{marginBottom:4}}>{COLORS.map(c=><div key={c} onClick={()=>setEditColor(c)} className="cursor-pointer" style={{width:16,height:16,borderRadius:8,background:c,border:editColor===c?'2px solid #EEE':'2px solid transparent'}}/>)}</div>}
+                {!me.photo&&<div className="flex gap-1 flex-wrap" style={{marginBottom:4}}>{COLORS.map(c=><div key={c} onClick={()=>setEditColor(c)} className="cursor-pointer" style={{width:16,height:16,borderRadius:8,background:c,border:editColor===c?`2px solid ${T.textBright}`:'2px solid transparent'}}/>)}</div>}
                 <div className="flex gap-2">
-                  <button onClick={async()=>{const n=editName.trim();if(n.length<2||!/^[\p{L}\s\-'.]+$/u.test(n))return;const u={...me,name:n,color:editColor};setMe(u);localStorage.setItem('alb_user',JSON.stringify(u));const ups:Record<string,any>={[`users/${me.id}/name`]:n,[`users/${me.id}/color`]:editColor};Object.entries(files).forEach(([k,f])=>{if(f.ownerId===me.id){ups[`files/${k}/ownerName`]=n;ups[`files/${k}/ownerColor`]=editColor;}});await update(ref(db),ups);setEditing(false);}} style={{flex:1,height:22,borderRadius:3,border:'none',background:'#4A90D9',color:'#fff',fontSize:10,fontWeight:600,cursor:'pointer'}}>Save</button>
-                  <button onClick={()=>{setEditName(me.name);setEditColor(me.color);setEditing(false);}} style={{height:22,borderRadius:3,border:'1px solid #505050',background:'transparent',color:'#AAA',fontSize:10,cursor:'pointer',padding:'0 8px'}}>Cancel</button>
+                  <button onClick={async()=>{const n=editName.trim();if(n.length<2||!/^[\p{L}\s\-'.]+$/u.test(n))return;const u={...me,name:n,color:editColor};setMe(u);localStorage.setItem('alb_user',JSON.stringify(u));const ups:Record<string,any>={[`users/${me.id}/name`]:n,[`users/${me.id}/color`]:editColor};Object.entries(files).forEach(([k,f])=>{if(f.ownerId===me.id){ups[`files/${k}/ownerName`]=n;ups[`files/${k}/ownerColor`]=editColor;}});await update(ref(db),ups);setEditing(false);}} style={{flex:1,height:22,borderRadius:3,border:'none',background:T.accentBlue,color:T.white,fontSize:10,fontWeight:600,cursor:'pointer'}}>Save</button>
+                  <button onClick={()=>{setEditName(me.name);setEditColor(me.color);setEditing(false);}} style={{height:22,borderRadius:3,border:`1px solid ${T.borderInput}`,background:'transparent',color:T.textSec,fontSize:10,cursor:'pointer',padding:'0 8px'}}>Cancel</button>
                 </div>
               </>}
             </div>
-            <div style={{padding:"4px 10px",fontSize:10,color:"#7A7A7A",marginBottom:2}}>Notifications</div>
-            {(['both','browser','telegram','off'] as const).map(p=><div key={p} onClick={()=>{setNotifyPref(p);localStorage.setItem('alb_notify',p);update(ref(db),{[`users/${me.id}/notifyPref`]:p});}} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:notifyPref===p?"#7BAEFA":"#D2D2D2",borderRadius:3,background:notifyPref===p?"#46607C":"transparent"}} onMouseEnter={e=>{if(notifyPref!==p)e.currentTarget.style.background="#4A4A4A"}} onMouseLeave={e=>{if(notifyPref!==p)e.currentTarget.style.background="transparent"}}><span style={{width:14,textAlign:'center'}}>{notifyPref===p?'●':'○'}</span>{{both:'Browser + Telegram',browser:'Browser only',telegram:'Telegram only',off:'Off'}[p]}</div>)}
-            <div style={{borderTop:"1px solid #505050",marginTop:4,paddingTop:4}}/>
+            <div style={{padding:"4px 10px",fontSize:10,color:T.textDim,marginBottom:2}}>Notifications</div>
+            {(['both','browser','telegram','off'] as const).map(p=><div key={p} onClick={()=>{setNotifyPref(p);localStorage.setItem('alb_notify',p);update(ref(db),{[`users/${me.id}/notifyPref`]:p});}} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:notifyPref===p?T.accent:T.text,borderRadius:3,background:notifyPref===p?T.bgSel:"transparent"}} onMouseEnter={e=>{if(notifyPref!==p)e.currentTarget.style.background=T.bgHover}} onMouseLeave={e=>{if(notifyPref!==p)e.currentTarget.style.background="transparent"}}><span style={{width:14,textAlign:'center'}}>{notifyPref===p?'●':'○'}</span>{{both:'Browser + Telegram',browser:'Browser only',telegram:'Telegram only',off:'Off'}[p]}</div>)}
+            <div style={{borderTop:`1px solid ${T.borderInput}`,marginTop:4,paddingTop:4}}/>
             {me.id>1e12&&<>
-              <div style={{padding:"4px 10px",fontSize:10,color:"#7A7A7A",marginBottom:2}}>Connect account</div>
-              <div onClick={async()=>{const u=await linkGoogle(me);if(u)setMe(u);}} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:"#D2D2D2",borderRadius:3}} onMouseEnter={e=>e.currentTarget.style.background="#4A4A4A"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <svg width={12} height={12} viewBox="0 0 48 48"><path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill="#888"/></svg>
+              <div style={{padding:"4px 10px",fontSize:10,color:T.textDim,marginBottom:2}}>Connect account</div>
+              <div onClick={async()=>{const u=await linkGoogle(me);if(u)setMe(u);}} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:T.text,borderRadius:3}} onMouseEnter={e=>e.currentTarget.style.background=T.bgHover} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <svg width={12} height={12} viewBox="0 0 48 48"><path d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z" fill={T.iconDim}/></svg>
                 Google
               </div>
-              <div onClick={()=>window.open(`https://t.me/asset_lock_board_bot?start=link_${me.id}`,'_blank')} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:"#D2D2D2",borderRadius:3}} onMouseEnter={e=>e.currentTarget.style.background="#4A4A4A"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <svg width={12} height={12} viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.66-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.74 3.98-1.73 6.63-2.87 7.97-3.44 3.8-1.58 4.59-1.86 5.1-1.87.11 0 .37.03.54.17.14.12.18.28.2.47-.01.06.01.24 0 .38z" fill="#888"/></svg>
+              <div onClick={()=>window.open(`https://t.me/asset_lock_board_bot?start=link_${me.id}`,'_blank')} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:T.text,borderRadius:3}} onMouseEnter={e=>e.currentTarget.style.background=T.bgHover} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <svg width={12} height={12} viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.66-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.74 3.98-1.73 6.63-2.87 7.97-3.44 3.8-1.58 4.59-1.86 5.1-1.87.11 0 .37.03.54.17.14.12.18.28.2.47-.01.06.01.24 0 .38z" fill={T.iconDim}/></svg>
                 Telegram
               </div>
-              <div style={{borderTop:"1px solid #505050",marginTop:4,paddingTop:4}}/>
+              <div style={{borderTop:`1px solid ${T.borderInput}`,marginTop:4,paddingTop:4}}/>
             </>}
-            <div onClick={()=>{logout();setMe(null);setMenuOpen(false);}} className="cursor-pointer" style={{padding:"6px 10px",fontSize:11,color:"#D35555",borderRadius:4}} onMouseEnter={e=>(e.currentTarget.style.background="#4A4A4A")} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>Log out</div>
+            <div onClick={()=>{logout();setMe(null);setMenuOpen(false);}} className="cursor-pointer" style={{padding:"6px 10px",fontSize:11,color:T.accentRed,borderRadius:4}} onMouseEnter={e=>(e.currentTarget.style.background=T.bgHover)} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>Log out</div>
           </div></>}
         </div>
       </div>
-      {notif&&<div style={{background:"#2D5A3D",color:"#A8E6A1",fontSize:10,padding:"2px 6px",textAlign:"center"}}>{notif}</div>}
+      {notif&&<div style={{background:T.toastBg,color:T.toastText,fontSize:10,padding:"2px 6px",textAlign:"center"}}>{notif}</div>}
       <div style={{paddingTop:'env(titlebar-area-height, 32px)'}}>
-      <div style={{background:"#303030"}}>
-        {entries.length===0&&<div style={{padding:16,textAlign:"center",color:"#585858",fontSize:11}}>No active files</div>}
+      <div style={{background:T.bgMid}}>
+        {entries.length===0&&<div style={{padding:16,textAlign:"center",color:T.textMuted,fontSize:11}}>No active files</div>}
         {(mine.length>0||ghosts.length>0)&&<>
-          <div className="flex items-center justify-between" style={{padding:"4px 6px 2px",background:"#282828"}}>
-            <span style={{fontSize:9,fontWeight:600,color:"#7A7A7A",textTransform:"uppercase",letterSpacing:".04em"}}>Your files ({mine.length}){ghosts.length>0&&<span style={{color:"#E8A04C"}}> +{ghosts.length}</span>}</span>
-            {mine.length>1&&<button onClick={freeAll} style={{height:14,padding:"0 5px",borderRadius:3,border:"1px solid #303030",background:"#585858",color:"#EEE",fontSize:9,cursor:"pointer",lineHeight:"12px"}}>Free All</button>}
+          <div className="flex items-center justify-between" style={{padding:"4px 6px 2px",background:T.bg}}>
+            <span style={{fontSize:9,fontWeight:600,color:T.textDim,textTransform:"uppercase",letterSpacing:".04em"}}>Your files ({mine.length}){ghosts.length>0&&<span style={{color:T.accentOrange}}> +{ghosts.length}</span>}</span>
+            {mine.length>1&&<button onClick={freeAll} style={{height:14,padding:"0 5px",borderRadius:3,border:`1px solid ${T.bgMid}`,background:T.textMuted,color:T.textBright,fontSize:9,cursor:"pointer",lineHeight:"12px"}}>Free All</button>}
           </div>
-          {mine.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"18px 1fr 20px 32px 42px",height:18,padding:"0 6px",columnGap:3,background:i%2?"#383838":"transparent"}}>
-            <FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:"#EEE"}}>{f.name}</span>
+          {mine.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"18px 1fr 20px 32px 42px",height:18,padding:"0 6px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
+            <FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:T.textBright}}>{f.name}</span>
             <div className="flex justify-center">{Object.keys(f.watchers||{}).length>0&&<BellIco active size={13}/>}</div>
-            <span style={{fontSize:9,color:"#7A7A7A",textAlign:"right"}}>{fmt(f.since)}</span>
-            <button onClick={()=>freeFile(f.name)} style={{height:14,borderRadius:3,border:"1px solid #303030",background:"#585858",color:"#EEE",fontSize:9,cursor:"pointer",padding:0}}>Free</button>
+            <span style={{fontSize:9,color:T.textDim,textAlign:"right"}}>{fmt(f.since)}</span>
+            <button onClick={()=>freeFile(f.name)} style={{height:14,borderRadius:3,border:`1px solid ${T.bgMid}`,background:T.textMuted,color:T.textBright,fontSize:9,cursor:"pointer",padding:0}}>Free</button>
           </div>)}
-          {ghosts.map(([k,f],i)=><div key={k} className={rowStyle} style={{gridTemplateColumns:"14px 18px 1fr 20px 18px 38px",height:18,padding:"0 6px",columnGap:3,opacity:.45,background:(mine.length+i)%2?"#383838":"transparent"}}>
-            <LkIco size={11}/><FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:"#EEE"}}>{f.name}</span>
+          {ghosts.map(([k,f],i)=><div key={k} className={rowStyle} style={{gridTemplateColumns:"14px 18px 1fr 20px 18px 38px",height:18,padding:"0 6px",columnGap:3,opacity:.45,background:(mine.length+i)%2?T.bgRow:"transparent"}}>
+            <LkIco size={11}/><FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:T.textBright}}>{f.name}</span>
             <div className="flex justify-center"><BellIco active onClick={()=>toggleWatch(f.name)} size={13}/></div>
             <Av user={{name:f.ownerName,color:f.ownerColor}} size={15}/><span className="truncate" style={{fontSize:10,color:f.ownerColor,fontWeight:600}}>{dn(f.ownerName,f.ownerUsername)}</span>
           </div>)}
         </>}
         <div className="flex justify-end" style={{padding:"4px 6px"}}>
-          <div onClick={()=>{setAddOpen(!addOpen);haptic('light');}} className="flex items-center cursor-pointer" style={{padding:"2px"}}><svg width={22} height={22} viewBox="0 0 16 16" style={{display:'block'}}><path d="M8 3v10M3 8h10" stroke="#C0C0C0" strokeWidth="2" strokeLinecap="round"/><path d="M11 12l2.5 3 2.5-3z" fill="#C0C0C0"/></svg></div>
+          <div onClick={()=>{setAddOpen(!addOpen);haptic('light');}} className="flex items-center cursor-pointer" style={{padding:"2px"}}><svg width={22} height={22} viewBox="0 0 16 16" style={{display:'block'}}><path d="M8 3v10M3 8h10" stroke={T.iconLight} strokeWidth="2" strokeLinecap="round"/><path d="M11 12l2.5 3 2.5-3z" fill={T.iconLight}/></svg></div>
         </div>
-        {addOpen&&<div style={{padding:"4px 6px",background:"#353535",borderTop:"1px solid #282828",borderBottom:"1px solid #282828"}}>
-          <textarea rows={2} placeholder="Level_05.unity, Rock.prefab" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submit();}}} style={{width:"100%",boxSizing:"border-box",padding:"4px 6px",background:"#3F3F3F",border:"1px solid #232323",borderRadius:3,color:"#D2D2D2",fontSize:11,fontFamily:"Consolas,monospace",resize:"none",outline:"none",lineHeight:"16px"}}/>
-          {typed.length>0&&<div style={{marginTop:2}}>{typed.map((n,i)=>{const k=toKey(n);const b=files[k]&&files[k].ownerId!==me.id;const m=files[k]&&files[k].ownerId===me.id;return<div key={i} className="flex items-center gap-1" style={{height:18}}><FIcon ext={getExt(n)} size={14}/><span className="flex-1" style={{fontSize:11,color:b?"#E8A04C":m?"#58B258":"#D2D2D2"}}>{n}</span>{b&&<><BellIco active size={12}/><span style={{fontSize:9,color:"#E8A04C",fontWeight:600}}>{dn(files[k].ownerName,files[k].ownerUsername)}</span></>}{m&&<span style={{fontSize:9,color:"#58B258"}}>yours</span>}</div>;})}</div>}
-          <div style={{fontSize:9,fontWeight:600,color:"#7A7A7A",textTransform:"uppercase",marginTop:4,marginBottom:2}}>Saved</div>
-          <div className="flex flex-wrap gap-0.5">{saved.map(n=>{const k=toKey(n);const act=files[k];const im=act&&act.ownerId===me.id;const on=sel.has(n);return<div key={n} onClick={()=>togSel(n)} className="flex items-center gap-1 cursor-pointer" style={{padding:"2px 4px",background:on?"#46607C":"#3F3F3F",borderRadius:3,border:`1px solid ${on?"#7BAEFA":"transparent"}`,opacity:im?.5:1}}><FIcon ext={getExt(n)} size={13}/><span style={{fontSize:10,color:"#D2D2D2"}}>{n.replace(/\.[^.]+$/,"")}</span><span style={{fontSize:9,color:"#7A7A7A"}}>.{getExt(n)}</span>{act&&!im&&<LkIco size={9}/>}{on&&<span style={{fontSize:9,color:"#7BAEFA",fontWeight:700}}>✓</span>}<button onClick={e=>{e.stopPropagation();rmSaved(n);}} style={{background:"none",border:"none",color:"#585858",fontSize:11,cursor:"pointer",padding:"0 1px",lineHeight:1}}>×</button></div>;})}</div>
-          {hasAny&&<button onClick={submit} style={{width:"100%",height:26,borderRadius:4,border:"1px solid #303030",background:"#46607C",color:"#EEE",fontSize:12,fontWeight:700,cursor:"pointer",marginTop:4}}>🔒 Busy ({[...new Set([...typed,...sel])].length})</button>}
+        {addOpen&&<div style={{padding:"4px 6px",background:T.bgPanel,borderTop:`1px solid ${T.bg}`,borderBottom:`1px solid ${T.bg}`}}>
+          <textarea rows={2} placeholder="Level_05.unity, Rock.prefab" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submit();}}} style={{width:"100%",boxSizing:"border-box",padding:"4px 6px",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:3,color:T.text,fontSize:11,fontFamily:"Consolas,monospace",resize:"none",outline:"none",lineHeight:"16px"}}/>
+          {typed.length>0&&<div style={{marginTop:2}}>{typed.map((n,i)=>{const k=toKey(n);const b=files[k]&&files[k].ownerId!==me.id;const m=files[k]&&files[k].ownerId===me.id;return<div key={i} className="flex items-center gap-1" style={{height:18}}><FIcon ext={getExt(n)} size={14}/><span className="flex-1" style={{fontSize:11,color:b?T.accentOrange:m?T.accentGreen:T.text}}>{n}</span>{b&&<><BellIco active size={12}/><span style={{fontSize:9,color:T.accentOrange,fontWeight:600}}>{dn(files[k].ownerName,files[k].ownerUsername)}</span></>}{m&&<span style={{fontSize:9,color:T.accentGreen}}>yours</span>}</div>;})}</div>}
+          <div style={{fontSize:9,fontWeight:600,color:T.textDim,textTransform:"uppercase",marginTop:4,marginBottom:2}}>Saved</div>
+          <div className="flex flex-wrap gap-0.5">{saved.map(n=>{const k=toKey(n);const act=files[k];const im=act&&act.ownerId===me.id;const on=sel.has(n);return<div key={n} onClick={()=>togSel(n)} className="flex items-center gap-1 cursor-pointer" style={{padding:"2px 4px",background:on?T.bgSel:T.bgInput,borderRadius:3,border:`1px solid ${on?T.accent:"transparent"}`,opacity:im?.5:1}}><FIcon ext={getExt(n)} size={13}/><span style={{fontSize:10,color:T.text}}>{n.replace(/\.[^.]+$/,"")}</span><span style={{fontSize:9,color:T.textDim}}>.{getExt(n)}</span>{act&&!im&&<LkIco size={9}/>}{on&&<span style={{fontSize:9,color:T.accent,fontWeight:700}}>✓</span>}<button onClick={e=>{e.stopPropagation();rmSaved(n);}} style={{background:"none",border:"none",color:T.textMuted,fontSize:11,cursor:"pointer",padding:"0 1px",lineHeight:1}}>×</button></div>;})}</div>
+          {hasAny&&<button onClick={submit} style={{width:"100%",height:26,borderRadius:4,border:`1px solid ${T.bgMid}`,background:T.bgSel,color:T.textBright,fontSize:12,fontWeight:700,cursor:"pointer",marginTop:4}}>🔒 Busy ({[...new Set([...typed,...sel])].length})</button>}
         </div>}
-        {groups.length>0&&<div className="flex items-center" style={{padding:"6px 6px 2px"}}><span style={{fontSize:9,fontWeight:600,color:"#7A7A7A",textTransform:"uppercase",letterSpacing:".04em"}}>Locked ({others.length})</span></div>}
-        {groups.map(g=>{const uid=g.owner.id;const isExp=!!expanded[uid];const vis=isExp?g.files:g.files.slice(0,CL);const more=g.files.length>CL;return<div key={uid} style={{borderTop:"1px solid #3C3C3C",marginTop:2}}>
-          <div className={`flex items-center gap-1.5 cursor-pointer ${hoverClass}`} style={{padding:"4px 6px",background:"#282828"}} onClick={()=>more&&togExp(uid)}>
-            <span style={{fontSize:10,color:"#7A7A7A"}}>{g.files.length}</span>{more&&<Chev open={isExp}/>}<div className="flex-1"/>
+        {groups.length>0&&<div className="flex items-center" style={{padding:"6px 6px 2px"}}><span style={{fontSize:9,fontWeight:600,color:T.textDim,textTransform:"uppercase",letterSpacing:".04em"}}>Locked ({others.length})</span></div>}
+        {groups.map(g=>{const uid=g.owner.id;const isExp=!!expanded[uid];const vis=isExp?g.files:g.files.slice(0,CL);const more=g.files.length>CL;return<div key={uid} style={{borderTop:`1px solid ${T.borderLight}`,marginTop:2}}>
+          <div className={`flex items-center gap-1.5 cursor-pointer ${hoverClass}`} style={{padding:"4px 6px",background:T.bg}} onClick={()=>more&&togExp(uid)}>
+            <span style={{fontSize:10,color:T.textDim}}>{g.files.length}</span>{more&&<Chev open={isExp}/>}<div className="flex-1"/>
             <span className="font-semibold" style={{fontSize:11,color:g.owner.color}}>{dn(g.owner.name,g.owner.username)}</span><Av user={g.owner} size={18}/>
           </div>
-          {vis.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"13px 16px 1fr 20px",height:18,padding:"0 4px 0 14px",columnGap:3,background:i%2?"#383838":"transparent"}}>
-            <LkIco size={11}/><FIcon ext={getExt(f.name)} size={14}/><span className="truncate" style={{fontSize:11,color:"#D2D2D2"}}>{f.name}</span>
+          {vis.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"13px 16px 1fr 20px",height:18,padding:"0 4px 0 14px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
+            <LkIco size={11}/><FIcon ext={getExt(f.name)} size={14}/><span className="truncate" style={{fontSize:11,color:T.text}}>{f.name}</span>
             <div className="flex justify-center"><BellIco active={isW(k)} onClick={()=>toggleWatch(f.name)} size={13}/></div>
           </div>)}
-          {more&&!isExp&&<div className="cursor-pointer" style={{padding:"1px 14px 3px",fontSize:10,color:"#7BAEFA",background:"#282828"}} onClick={()=>togExp(uid)}>+ {g.files.length-CL} more</div>}
+          {more&&!isExp&&<div className="cursor-pointer" style={{padding:"1px 14px 3px",fontSize:10,color:T.accent,background:T.bg}} onClick={()=>togExp(uid)}>+ {g.files.length-CL} more</div>}
         </div>;})}
       </div>
     </div>
