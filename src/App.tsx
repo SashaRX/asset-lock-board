@@ -150,6 +150,9 @@ export default function App() {
   const [editing, setEditing] = useState(false);
   const [pipWin, setPipWin] = useState<Window | null>(null);
   const [notifyPref, setNotifyPref] = useState<'both'|'browser'|'telegram'|'off'>(() => (localStorage.getItem('alb_notify') as any) || 'both');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [allUsers, setAllUsers] = useState<Record<string,{name:string;color:string;username?:string;photo?:string}>>({});
+  const [adminOpen, setAdminOpen] = useState(false);
   const tRef = useRef<ReturnType<typeof setTimeout>>();
   const prevFilesRef = useRef<FilesMap>({});
   const browserNotify = notifyPref === 'both' || notifyPref === 'browser';
@@ -162,6 +165,18 @@ export default function App() {
   useEffect(() => {
     if (!me) { checkGoogleRedirect().then(u => { if (u) setMe(u); }); }
   }, []);
+
+  useEffect(() => {
+    if (!me) return;
+    const unsub = onValue(ref(db, `admins/${me.id}`), snap => setIsAdmin(!!snap.val()));
+    return () => unsub();
+  }, [me?.id]);
+
+  useEffect(() => {
+    if (!me || !isAdmin) return;
+    const unsub = onValue(ref(db, 'users'), snap => setAllUsers(snap.val() || {}));
+    return () => unsub();
+  }, [me?.id, isAdmin]);
 
   const flash = useCallback((m: string) => {
     setNotif(m); clearTimeout(tRef.current);
@@ -256,6 +271,24 @@ export default function App() {
   const rmSaved = async (n:string) => { await remove(ref(db,`saved/${toKey(n)}`)); setSel(p=>{const s=new Set(p);s.delete(n);return s;}); };
   const togExp = (id:number) => setExpanded(p=>({...p,[id]:!p[id]}));
 
+  const purgeUser = async (uid:string) => {
+    if (!isAdmin) return;
+    const ups:Record<string,null> = {[`users/${uid}`]:null};
+    Object.entries(files).forEach(([k,f])=>{
+      if (String(f.ownerId)===uid) ups[`files/${k}`]=null;
+      if (f.watchers?.[uid]) ups[`files/${k}/watchers/${uid}`]=null;
+    });
+    await update(ref(db),ups);
+    flash('User removed');
+    hapticNotify('success');
+  };
+
+  const adminKickWatcher = async (fileKey:string, uid:string) => {
+    if (!isAdmin) return;
+    await remove(ref(db,`files/${fileKey}/watchers/${uid}`));
+    haptic('light');
+  };
+
   const togglePip = async () => {
     if (pipWin) { pipWin.close(); setPipWin(null); return; }
     if (!('documentPictureInPicture' in window)) return;
@@ -330,6 +363,26 @@ export default function App() {
               </div>
               <div style={{borderTop:`1px solid ${T.borderInput}`,marginTop:4,paddingTop:4}}/>
             </>}
+            {isAdmin&&<>
+              <div style={{borderTop:`1px solid ${T.borderInput}`,marginTop:4,paddingTop:4}}/>
+              <div onClick={()=>setAdminOpen(!adminOpen)} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:T.accentOrange,borderRadius:3}} onMouseEnter={e=>e.currentTarget.style.background=T.bgHover} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <span style={{fontSize:12}}>⚙</span> Admin {adminOpen?'▴':'▾'}
+              </div>
+              {adminOpen&&<div style={{maxHeight:200,overflowY:'auto',padding:"2px 4px"}}>
+                {Object.entries(allUsers).filter(([uid])=>String(uid)!==String(me.id)).map(([uid,u])=>{
+                  const userFiles=Object.entries(files).filter(([,f])=>String(f.ownerId)===uid);
+                  const watching=Object.entries(files).filter(([,f])=>f.watchers?.[uid]);
+                  return <div key={uid} className="flex items-center gap-1.5" style={{padding:"3px 6px",borderRadius:3,fontSize:10}}>
+                    <Av user={{name:u.name||'?',color:u.color||T.textMuted}} size={16}/>
+                    <span className="flex-1 truncate" style={{color:T.text}}>{u.name||uid}{u.username?` @${u.username}`:''}</span>
+                    {userFiles.length>0&&<span style={{color:T.accentOrange,fontSize:9}}>{userFiles.length}🔒</span>}
+                    {watching.length>0&&<span style={{color:T.accent,fontSize:9}}>{watching.length}👁</span>}
+                    <span onClick={()=>{if(confirm(`Remove ${u.name||uid} and free their files?`))purgeUser(uid);}} className="cursor-pointer" style={{color:T.accentRed,fontSize:12,padding:"0 2px",lineHeight:1}}>×</span>
+                  </div>;
+                })}
+                {Object.keys(allUsers).filter(uid=>String(uid)!==String(me.id)).length===0&&<div style={{padding:"4px 10px",fontSize:10,color:T.textMuted}}>No other users</div>}
+              </div>}
+            </>}
             <div onClick={()=>{logout();setMe(null);setMenuOpen(false);}} className="cursor-pointer" style={{padding:"6px 10px",fontSize:11,color:T.accentRed,borderRadius:4}} onMouseEnter={e=>(e.currentTarget.style.background=T.bgHover)} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>Log out</div>
           </div></>}
         </div>
@@ -371,9 +424,10 @@ export default function App() {
             <span style={{fontSize:10,color:T.textDim}}>{g.files.length}</span>{more&&<Chev open={isExp}/>}<div className="flex-1"/>
             <span className="font-semibold" style={{fontSize:11,color:g.owner.color}}>{dn(g.owner.name,g.owner.username)}</span><Av user={g.owner} size={18}/>
           </div>
-          {vis.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"13px 16px 1fr 20px",height:18,padding:"0 4px 0 14px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
+          {vis.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:isAdmin?"13px 16px 1fr 20px 32px":"13px 16px 1fr 20px",height:18,padding:"0 4px 0 14px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
             <LkIco size={11}/><FIcon ext={getExt(f.name)} size={14}/><span className="truncate" style={{fontSize:11,color:T.text}}>{f.name}</span>
             <div className="flex justify-center"><BellIco active={isW(k)} onClick={()=>toggleWatch(f.name)} size={13}/></div>
+            {isAdmin&&<button onClick={()=>freeFile(f.name)} style={{height:14,borderRadius:3,border:`1px solid ${T.bgMid}`,background:T.textMuted,color:T.textBright,fontSize:9,cursor:"pointer",padding:0}}>Free</button>}
           </div>)}
           {more&&!isExp&&<div className="cursor-pointer" style={{padding:"1px 14px 3px",fontSize:10,color:T.accent,background:T.bg}} onClick={()=>togExp(uid)}>+ {g.files.length-CL} more</div>}
         </div>;})}
