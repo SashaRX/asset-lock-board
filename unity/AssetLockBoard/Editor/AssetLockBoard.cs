@@ -12,6 +12,45 @@ namespace AssetLockBoard.Editor
     {
         const string FIREBASE_URL = "https://asset-lock-board-default-rtdb.europe-west1.firebasedatabase.app";
         const float POLL_INTERVAL = 5f;
+        const int ROW_H = 20;
+
+        // --- Palette (matches web T) ---
+        static readonly Color C_Bg       = new(0.157f, 0.157f, 0.157f); // #282828
+        static readonly Color C_BgDark   = new(0.098f, 0.098f, 0.098f); // #191919
+        static readonly Color C_BgRow    = new(0.220f, 0.220f, 0.220f); // #383838
+        static readonly Color C_BgPanel  = new(0.208f, 0.208f, 0.208f); // #353535
+        static readonly Color C_Border   = new(0.137f, 0.137f, 0.137f); // #232323
+        static readonly Color C_Text     = new(0.824f, 0.824f, 0.824f); // #D2D2D2
+        static readonly Color C_TextDim  = new(0.478f, 0.478f, 0.478f); // #7A7A7A
+        static readonly Color C_TextMute = new(0.345f, 0.345f, 0.345f); // #585858
+        static readonly Color C_Accent   = new(0.483f, 0.686f, 0.980f); // #7BAEFA
+        static readonly Color C_Orange   = new(0.910f, 0.627f, 0.298f); // #E8A04C
+        static readonly Color C_Red      = new(0.827f, 0.133f, 0.133f); // #D32222
+        static readonly Color C_Green    = new(0.345f, 0.698f, 0.345f); // #58B258
+        static readonly Color C_BlueBg   = new(0.275f, 0.376f, 0.486f); // #46607C
+
+        static GUIStyle _rowLabel;
+        static GUIStyle _dimLabel;
+        static GUIStyle _headerLabel;
+        static GUIStyle _ownerLabel;
+
+        static void InitStyles()
+        {
+            if (_rowLabel != null) return;
+            _rowLabel = new GUIStyle(EditorStyles.label) { fontSize = 11, alignment = TextAnchor.MiddleLeft };
+            _rowLabel.normal.textColor = C_Text;
+            _dimLabel = new GUIStyle(EditorStyles.miniLabel) { fontSize = 10, alignment = TextAnchor.MiddleRight };
+            _dimLabel.normal.textColor = C_TextDim;
+            _headerLabel = new GUIStyle(EditorStyles.miniLabel) { fontSize = 9, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft };
+            _headerLabel.normal.textColor = C_TextDim;
+            _ownerLabel = new GUIStyle(EditorStyles.boldLabel) { fontSize = 11, alignment = TextAnchor.MiddleRight };
+        }
+
+        static void DrawRowBg(Rect r, int index)
+        {
+            if (index % 2 == 1)
+                EditorGUI.DrawRect(r, C_BgRow);
+        }
 
         // --- Settings (EditorPrefs) ---
         static long UserId
@@ -237,21 +276,31 @@ namespace AssetLockBoard.Editor
 
         void DrawBoard()
         {
-            // Toolbar
-            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label($"\U0001F512 Lock Board ({Files.Count})", EditorStyles.boldLabel);
+            InitStyles();
+
+            // Header bar (matches web #191919)
+            var headerRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(28));
+            EditorGUI.DrawRect(headerRect, C_BgDark);
+            GUILayout.Space(6);
+            GUI.color = C_Text;
+            GUILayout.Label($"\U0001F512 Lock Board", EditorStyles.boldLabel, GUILayout.Height(28));
+            GUI.color = Color.white;
+
+            // File count badge
+            var countStyle = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleCenter };
+            countStyle.normal.textColor = C_TextDim;
+            GUI.backgroundColor = new Color(0.25f, 0.25f, 0.25f);
+            GUILayout.Label($" {Files.Count} ", countStyle, GUILayout.Height(16));
+            GUI.backgroundColor = Color.white;
+
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("\u21BB", EditorStyles.toolbarButton, GUILayout.Width(24)))
-                Refresh();
-            if (GUILayout.Button("+", EditorStyles.toolbarButton, GUILayout.Width(24)))
-                _showLockInput = !_showLockInput;
-            if (GUILayout.Button("\u2699", EditorStyles.toolbarButton, GUILayout.Width(24)))
-            {
-                UserId = 0; UserName = ""; UserUsername = "";
-            }
+            if (GUILayout.Button("\u21BB", EditorStyles.toolbarButton, GUILayout.Width(24))) Refresh();
+            if (GUILayout.Button("+", EditorStyles.toolbarButton, GUILayout.Width(24))) _showLockInput = !_showLockInput;
+            if (GUILayout.Button("\u2699", EditorStyles.toolbarButton, GUILayout.Width(24))) { UserId = 0; UserName = ""; UserUsername = ""; }
+            GUILayout.Space(4);
             EditorGUILayout.EndHorizontal();
 
-            // Selection panel — selected assets quick-lock
+            // Selection panel
             var selected = new List<(UnityEngine.Object obj, string path, string filename)>();
             foreach (var obj in Selection.objects)
             {
@@ -259,171 +308,186 @@ namespace AssetLockBoard.Editor
                 var p = AssetDatabase.GetAssetPath(obj);
                 if (string.IsNullOrEmpty(p)) continue;
                 var fn = System.IO.Path.GetFileName(p);
-                if (!string.IsNullOrEmpty(fn) && fn.Contains("."))
-                    selected.Add((obj, p, fn));
+                if (!string.IsNullOrEmpty(fn) && fn.Contains(".")) selected.Add((obj, p, fn));
             }
 
             if (selected.Count > 0)
             {
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                var panelRect = EditorGUILayout.BeginVertical();
+                EditorGUI.DrawRect(panelRect, C_BgPanel);
+                GUILayout.Space(2);
 
-                // Mode toggle (shared for all)
-                EditorGUILayout.BeginHorizontal();
-                var mStyle = new GUIStyle(EditorStyles.miniButton);
-                EditorGUILayout.LabelField("Mode:", GUILayout.Width(38));
-                if (LockMode == "busy") GUI.color = new Color(0.91f, 0.63f, 0.30f);
-                if (GUILayout.Button("Busy", mStyle, GUILayout.Width(42))) LockMode = "busy";
-                GUI.color = Color.white;
-                if (LockMode == "lock") GUI.color = new Color(0.83f, 0.13f, 0.13f);
-                if (GUILayout.Button("Lock", mStyle, GUILayout.Width(42))) LockMode = "lock";
-                GUI.color = Color.white;
-                GUILayout.FlexibleSpace();
-
-                // Bulk actions
-                var unlocked = selected.Where(s => !Files.ContainsKey(s.filename.Replace(".", "~"))).ToList();
-                var myFiles = selected.Where(s => { var k = s.filename.Replace(".", "~"); return Files.TryGetValue(k, out var f) && f.ownerId == UserId; }).ToList();
-                if (unlocked.Count > 1)
-                {
-                    GUI.backgroundColor = LockMode == "lock" ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
-                    if (GUILayout.Button($"{(LockMode == "lock" ? "\U0001F512" : "\U0001F536")} All ({unlocked.Count})", GUILayout.Width(70)))
-                        foreach (var s in unlocked) DoLock(s.filename);
-                    GUI.backgroundColor = Color.white;
-                }
-                if (myFiles.Count > 1)
-                {
-                    if (GUILayout.Button($"Free All ({myFiles.Count})", EditorStyles.miniButton, GUILayout.Width(72)))
-                        foreach (var s in myFiles) DoFree(s.filename);
-                }
-                EditorGUILayout.EndHorizontal();
-
-                // Per-file rows
                 foreach (var (obj, path, filename) in selected)
                 {
                     var key = filename.Replace(".", "~");
                     Files.TryGetValue(key, out var fd);
-
-                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.BeginHorizontal(GUILayout.Height(ROW_H));
+                    GUILayout.Space(4);
                     var icon = AssetDatabase.GetCachedIcon(path);
-                    if (icon != null) GUILayout.Label(new GUIContent(icon), GUILayout.Width(18), GUILayout.Height(18));
-                    GUILayout.Label(filename, GUILayout.ExpandWidth(true));
+                    if (icon != null) GUILayout.Label(new GUIContent(icon), GUILayout.Width(16), GUILayout.Height(16));
+                    GUILayout.Label(filename, _rowLabel);
+                    GUILayout.FlexibleSpace();
 
                     if (fd == null)
                     {
-                        GUI.backgroundColor = LockMode == "lock" ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
-                        if (GUILayout.Button(LockMode == "lock" ? "\U0001F512" : "\U0001F536", GUILayout.Width(28)))
-                            DoLock(filename);
+                        GUI.backgroundColor = LockMode == "lock" ? C_Red : C_Orange;
+                        if (GUILayout.Button(LockMode == "lock" ? "\U0001F512" : "\U0001F536", EditorStyles.miniButton, GUILayout.Width(26))) DoLock(filename);
                         GUI.backgroundColor = Color.white;
                     }
                     else if (fd.ownerId == UserId)
                     {
-                        GUI.color = fd.IsLock ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
-                        if (GUILayout.Button(fd.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(28)))
+                        GUI.color = fd.IsLock ? C_Red : C_Orange;
+                        if (GUILayout.Button(fd.IsLock ? "\U0001F512" : "\U0001F536", EditorStyles.miniButton, GUILayout.Width(26)))
                             Put($"files/{key}/mode.json", $"\"{(fd.IsLock ? "busy" : "lock")}\"", _ => Refresh());
                         GUI.color = Color.white;
-                        if (GUILayout.Button("×", EditorStyles.miniButton, GUILayout.Width(20)))
-                            DoFree(filename);
+                        if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(36))) DoFree(filename);
                     }
                     else
                     {
                         var disp = !string.IsNullOrEmpty(fd.ownerUsername) ? $"@{fd.ownerUsername}" : fd.ownerName;
-                        GUI.color = fd.IsLock ? new Color(0.83f, 0.33f, 0.33f) : new Color(0.91f, 0.63f, 0.30f);
-                        GUILayout.Label(fd.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(18));
-                        GUILayout.Label(disp, EditorStyles.miniLabel, GUILayout.Width(80));
+                        GUI.color = fd.IsLock ? C_Red : C_Orange;
+                        GUILayout.Label($"{(fd.IsLock ? "\U0001F512" : "\U0001F536")} {disp}", _dimLabel);
                         GUI.color = Color.white;
                     }
-
+                    GUILayout.Space(4);
                     EditorGUILayout.EndHorizontal();
                 }
 
+                // Mode toggle + bulk
+                EditorGUILayout.BeginHorizontal(GUILayout.Height(18));
+                GUILayout.Space(4);
+                GUILayout.Label("Mode:", _dimLabel, GUILayout.Width(36));
+                GUI.color = LockMode == "busy" ? C_Orange : C_TextMute;
+                if (GUILayout.Button("Busy", EditorStyles.miniButton, GUILayout.Width(38))) LockMode = "busy";
+                GUI.color = LockMode == "lock" ? C_Red : C_TextMute;
+                if (GUILayout.Button("Lock", EditorStyles.miniButton, GUILayout.Width(38))) LockMode = "lock";
+                GUI.color = Color.white;
+                GUILayout.FlexibleSpace();
+                var unlocked = selected.Where(s => !Files.ContainsKey(s.filename.Replace(".", "~"))).ToList();
+                var myFiles = selected.Where(s => { var k = s.filename.Replace(".", "~"); return Files.TryGetValue(k, out var f) && f.ownerId == UserId; }).ToList();
+                if (unlocked.Count > 1)
+                {
+                    GUI.backgroundColor = LockMode == "lock" ? C_Red : C_Orange;
+                    if (GUILayout.Button($"All ({unlocked.Count})", EditorStyles.miniButton, GUILayout.Width(50)))
+                        foreach (var s in unlocked) DoLock(s.filename);
+                    GUI.backgroundColor = Color.white;
+                }
+                if (myFiles.Count > 1)
+                    if (GUILayout.Button($"Free ({myFiles.Count})", EditorStyles.miniButton, GUILayout.Width(54)))
+                        foreach (var s in myFiles) DoFree(s.filename);
+                GUILayout.Space(4);
+                EditorGUILayout.EndHorizontal();
+                GUILayout.Space(2);
                 EditorGUILayout.EndVertical();
             }
 
-            // Manual lock input (+ button)
+            // Manual input
             if (_showLockInput)
             {
-                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.BeginHorizontal(GUILayout.Height(22));
+                GUILayout.Space(4);
                 _lockInput = EditorGUILayout.TextField(_lockInput);
                 var canLock = !string.IsNullOrWhiteSpace(_lockInput) && _lockInput.Contains(".");
                 EditorGUI.BeginDisabledGroup(!canLock);
-                if (GUILayout.Button(LockMode == "lock" ? "\U0001F512 Lock" : "\U0001F536 Busy", GUILayout.Width(60)))
-                {
-                    DoLock(_lockInput.Trim());
-                    _lockInput = "";
-                    _showLockInput = false;
-                }
+                if (GUILayout.Button(LockMode == "lock" ? "\U0001F512" : "\U0001F536", GUILayout.Width(28)))
+                { DoLock(_lockInput.Trim()); _lockInput = ""; _showLockInput = false; }
                 EditorGUI.EndDisabledGroup();
+                GUILayout.Space(4);
                 EditorGUILayout.EndHorizontal();
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Mode:", GUILayout.Width(40));
-                var style = new GUIStyle(EditorStyles.miniButton);
-                if (LockMode == "busy") GUI.color = new Color(0.91f, 0.63f, 0.30f);
-                if (GUILayout.Button("Busy", style, GUILayout.Width(50))) LockMode = "busy";
-                GUI.color = Color.white;
-                if (LockMode == "lock") GUI.color = new Color(0.83f, 0.13f, 0.13f);
-                if (GUILayout.Button("Lock", style, GUILayout.Width(50))) LockMode = "lock";
-                GUI.color = Color.white;
-                GUILayout.FlexibleSpace();
-                EditorGUILayout.EndHorizontal();
-                EditorGUILayout.HelpBox(LockMode == "lock"
-                    ? "Lock — blocks saving in Unity for others"
-                    : "Busy — informational, others can still edit", MessageType.None);
-                GUILayout.Space(2);
             }
 
+            // --- File list ---
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
 
             var mine = Files.Where(f => f.Value.ownerId == UserId).ToList();
             var others = Files.Where(f => f.Value.ownerId != UserId).ToList();
 
-            // My files
+            // Section: Your files
             if (mine.Count > 0)
             {
-                EditorGUILayout.LabelField($"YOUR FILES ({mine.Count})", EditorStyles.miniLabel);
-                foreach (var (key, file) in mine)
+                var secRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(18));
+                EditorGUI.DrawRect(secRect, C_Bg);
+                GUILayout.Space(6);
+                GUILayout.Label($"YOUR FILES ({mine.Count})", _headerLabel);
+                GUILayout.FlexibleSpace();
+                if (mine.Count > 1 && GUILayout.Button("Free All", EditorStyles.miniButton, GUILayout.Width(50)))
+                { foreach (var (k, f) in mine) DoFree(f.name); }
+                GUILayout.Space(4);
+                EditorGUILayout.EndHorizontal();
+
+                for (int i = 0; i < mine.Count; i++)
                 {
-                    EditorGUILayout.BeginHorizontal();
-                    GUILayout.Label(FileIcon(file.name), GUILayout.Width(18), GUILayout.Height(18));
-                    GUILayout.Label(file.name, GUILayout.ExpandWidth(true));
-                    // Mode toggle
-                    GUI.color = file.IsLock ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
-                    if (GUILayout.Button(file.IsLock ? "\U0001F512" : "\U0001F536", EditorStyles.miniButton, GUILayout.Width(26)))
+                    var (key, file) = mine[i];
+                    var rowRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(ROW_H));
+                    DrawRowBg(rowRect, i);
+                    GUILayout.Space(4);
+                    // Mode icon (clickable)
+                    GUI.color = file.IsLock ? C_Red : C_Orange;
+                    if (GUILayout.Button(file.IsLock ? "\U0001F512" : "\u25C6", EditorStyles.miniLabel, GUILayout.Width(14)))
                         Put($"files/{key}/mode.json", $"\"{(file.IsLock ? "busy" : "lock")}\"", _ => Refresh());
                     GUI.color = Color.white;
+                    // Asset icon
+                    GUILayout.Label(FileIcon(file.name), GUILayout.Width(16), GUILayout.Height(16));
+                    // Name
+                    GUILayout.Label(file.name, _rowLabel);
+                    GUILayout.FlexibleSpace();
                     // Watchers
                     if (file.watcherCount > 0)
-                        GUILayout.Label($"\U0001F514{file.watcherCount}", EditorStyles.miniLabel, GUILayout.Width(24));
-                    else
-                        GUILayout.Space(24);
+                    {
+                        GUI.color = C_Orange;
+                        GUILayout.Label($"\U0001F514", GUILayout.Width(14));
+                        GUI.color = Color.white;
+                    }
                     // Time
-                    GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(36));
+                    GUILayout.Label(Fmt(file.since), _dimLabel, GUILayout.Width(36));
                     // Free
-                    if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(36)))
-                        DoFree(file.name);
+                    if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(36))) DoFree(file.name);
+                    GUILayout.Space(4);
                     EditorGUILayout.EndHorizontal();
                 }
-                GUILayout.Space(4);
+                GUILayout.Space(2);
             }
 
-            // Others
+            // Section: Others
             if (others.Count > 0)
             {
-                EditorGUILayout.LabelField($"LOCKED ({others.Count})", EditorStyles.miniLabel);
+                var secRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(18));
+                EditorGUI.DrawRect(secRect, C_Bg);
+                GUILayout.Space(6);
+                GUILayout.Label($"LOCKED ({others.Count})", _headerLabel);
+                EditorGUILayout.EndHorizontal();
+
                 var grouped = others.GroupBy(f => f.Value.ownerId).OrderByDescending(g => g.Count());
+                int idx = 0;
                 foreach (var group in grouped)
                 {
                     var first = group.First().Value;
                     var disp = !string.IsNullOrEmpty(first.ownerUsername) ? $"@{first.ownerUsername}" : first.ownerName;
-                    EditorGUILayout.LabelField($"  {disp} ({group.Count()})", EditorStyles.boldLabel);
+
+                    // Owner header
+                    var ownerRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(20));
+                    EditorGUI.DrawRect(ownerRect, C_Bg);
+                    GUILayout.Space(6);
+                    GUILayout.Label($"{group.Count()}", _dimLabel, GUILayout.Width(14));
+                    GUILayout.FlexibleSpace();
+                    _ownerLabel.normal.textColor = ColorFromHex(first.ownerColor);
+                    GUILayout.Label(disp, _ownerLabel);
+                    GUILayout.Space(4);
+                    EditorGUILayout.EndHorizontal();
+
                     foreach (var (_, file) in group)
                     {
-                        EditorGUILayout.BeginHorizontal();
-                        GUILayout.Space(20);
-                        GUILayout.Label(FileIcon(file.name), GUILayout.Width(18), GUILayout.Height(18));
-                        GUILayout.Label(file.name, GUILayout.ExpandWidth(true));
-                        GUI.color = file.IsLock ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
-                        GUILayout.Label(file.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(18));
+                        var rowRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(ROW_H));
+                        DrawRowBg(rowRect, idx++);
+                        GUILayout.Space(16);
+                        GUI.color = file.IsLock ? C_Red : C_Orange;
+                        GUILayout.Label(file.IsLock ? "\U0001F512" : "\u25C6", GUILayout.Width(14));
                         GUI.color = Color.white;
-                        GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(36));
+                        GUILayout.Label(FileIcon(file.name), GUILayout.Width(16), GUILayout.Height(16));
+                        GUILayout.Label(file.name, _rowLabel);
+                        GUILayout.FlexibleSpace();
+                        GUILayout.Label(Fmt(file.since), _dimLabel, GUILayout.Width(36));
+                        GUILayout.Space(4);
                         EditorGUILayout.EndHorizontal();
                     }
                 }
@@ -432,7 +496,9 @@ namespace AssetLockBoard.Editor
             if (Files.Count == 0)
             {
                 GUILayout.Space(20);
-                GUILayout.Label("No locked files", EditorStyles.centeredGreyMiniLabel);
+                var emptyStyle = new GUIStyle(EditorStyles.centeredGreyMiniLabel);
+                emptyStyle.normal.textColor = C_TextMute;
+                GUILayout.Label("No locked files", emptyStyle);
             }
 
             EditorGUILayout.EndScrollView();
@@ -442,6 +508,13 @@ namespace AssetLockBoard.Editor
         {
             var dt = DateTimeOffset.FromUnixTimeMilliseconds(ms).LocalDateTime;
             return dt.ToString("HH:mm");
+        }
+
+        static Color ColorFromHex(string hex)
+        {
+            if (string.IsNullOrEmpty(hex)) return C_Text;
+            ColorUtility.TryParseHtmlString(hex, out var c);
+            return c;
         }
 
         static GUIContent FileIcon(string filename)
