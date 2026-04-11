@@ -11,6 +11,7 @@ namespace AssetLockBoard.Editor
         static Texture2D _lockMineTex;
         static Texture2D _busyTex;
         static Texture2D _busyMineTex;
+        static GUIStyle _nameStyle;
 
         static AssetLockProjectView()
         {
@@ -102,17 +103,35 @@ namespace AssetLockBoard.Editor
                     ? $"@{file.ownerUsername}" : file.ownerName;
 
             bool isList = rect.height <= 20;
+            bool isFolder = AssetDatabase.IsValidFolder(path);
 
             if (isList)
             {
-                // Small badge on the left, over the asset icon corner
-                var iconSize = 8;
-                var iconRect = new Rect(rect.x, rect.y + rect.height - iconSize - 1, iconSize, iconSize);
-                GUI.DrawTexture(iconRect, tex, ScaleMode.ScaleToFit);
+                if (isFolder)
+                {
+                    // Tree view (left panel): small badge bottom-left of folder icon
+                    var iconRect = new Rect(rect.x, rect.y + rect.height - 9, 8, 8);
+                    GUI.DrawTexture(iconRect, tex, ScaleMode.ScaleToFit);
+                }
+                else
+                {
+                    // Flat list (right panel): icon + name on the right
+                    if (_nameStyle == null)
+                        _nameStyle = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleLeft, fontSize = 9 };
+                    _nameStyle.normal.textColor = isMine
+                        ? new Color(0.35f, 0.70f, 0.35f)
+                        : isLock ? new Color(0.83f, 0.33f, 0.33f)
+                        : new Color(0.91f, 0.63f, 0.30f);
+                    var nameW = Mathf.Min(_nameStyle.CalcSize(new GUIContent(display)).x, 70f);
+                    var totalW = 10 + 2 + nameW + 4;
+                    var iconRect = new Rect(rect.xMax - totalW, rect.y + (rect.height - 10) / 2f, 10, 10);
+                    GUI.DrawTexture(iconRect, tex, ScaleMode.ScaleToFit);
+                    GUI.Label(new Rect(iconRect.xMax + 2, rect.y, nameW, rect.height), display, _nameStyle);
+                }
             }
             else
             {
-                // Grid view: badge in bottom-left of icon
+                // Grid/icon view: badge in bottom-left
                 var iconRect = new Rect(rect.x, rect.yMax - 28, 10, 10);
                 GUI.DrawTexture(iconRect, tex, ScaleMode.ScaleToFit);
             }
