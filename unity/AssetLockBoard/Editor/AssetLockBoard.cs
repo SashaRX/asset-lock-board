@@ -48,8 +48,7 @@ namespace AssetLockBoard.Editor
 
         static void DrawRowBg(Rect r, int index)
         {
-            if (index % 2 == 1)
-                EditorGUI.DrawRect(r, C_BgRow);
+            EditorGUI.DrawRect(r, index % 2 == 0 ? C_Bg : C_BgRow);
         }
 
         // --- Settings (EditorPrefs) ---
@@ -405,7 +404,7 @@ namespace AssetLockBoard.Editor
                     DrawRowBg(r, i);
                     GUILayout.Space(6);
                     GUILayout.Label(FileIcon(file.name), GUILayout.Width(16), GUILayout.Height(16));
-                    GUILayout.Label(file.name, _rowLabel);
+                    FileName(file.name);
                     GUILayout.FlexibleSpace();
                     ModeTag(file, key);
                     if (file.watcherCount > 0) WatcherBadge(file.watcherCount);
@@ -442,7 +441,7 @@ namespace AssetLockBoard.Editor
                         DrawRowBg(r, idx++);
                         GUILayout.Space(18);
                         GUILayout.Label(FileIcon(file.name), GUILayout.Width(16), GUILayout.Height(16));
-                        GUILayout.Label(file.name, _rowLabel);
+                        FileName(file.name);
                         GUILayout.FlexibleSpace();
                         ModeLabel(file);
                         GUILayout.Label(Fmt(file.since), _dimLabel, GUILayout.Width(36));
@@ -501,6 +500,32 @@ namespace AssetLockBoard.Editor
         {
             var r = GUILayoutUtility.GetRect(0, 1, GUILayout.ExpandWidth(true));
             EditorGUI.DrawRect(r, C_Border);
+        }
+
+        static GUIStyle _linkLabel;
+        static void FileName(string filename)
+        {
+            if (_linkLabel == null)
+            {
+                _linkLabel = new GUIStyle(EditorStyles.label) { fontSize = 11, alignment = TextAnchor.MiddleLeft };
+                _linkLabel.normal.textColor = C_Text;
+                _linkLabel.hover.textColor = C_Accent;
+                _linkLabel.active.textColor = C_Accent;
+            }
+            if (GUILayout.Button(filename, _linkLabel))
+            {
+                var guids = AssetDatabase.FindAssets(System.IO.Path.GetFileNameWithoutExtension(filename));
+                foreach (var guid in guids)
+                {
+                    var path = AssetDatabase.GUIDToAssetPath(guid);
+                    if (System.IO.Path.GetFileName(path) == filename)
+                    {
+                        var obj = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path);
+                        if (obj != null) { Selection.activeObject = obj; EditorGUIUtility.PingObject(obj); }
+                        return;
+                    }
+                }
+            }
         }
 
 
