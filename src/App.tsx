@@ -404,7 +404,7 @@ export default function App() {
                   const userFiles=Object.entries(files).filter(([,f])=>String(f.ownerId)===uid);
                   const watching=Object.entries(files).filter(([,f])=>f.watchers?.[uid]);
                   const prov=u.provider||'?';
-                  const provIcon={telegram:'✈',google:'G',simple:'✎'}[prov]||'?';
+                  const provIcon={telegram:'TG',google:'G',simple:'✎'}[prov]||'?';
                   const age=u.createdAt?new Date(u.createdAt).toLocaleDateString():'—';
                   const seen=u.lastSeen?new Date(u.lastSeen).toLocaleDateString():'—';
                   return <div key={uid} style={{padding:"3px 6px",borderRadius:3,fontSize:10,borderBottom:`1px solid ${T.border}`,opacity:isSelf?.6:1}}>
