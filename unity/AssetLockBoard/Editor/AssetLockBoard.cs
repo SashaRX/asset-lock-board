@@ -64,12 +64,14 @@ namespace AssetLockBoard.Editor
         void OnEnable()
         {
             EditorApplication.update += Tick;
+            Selection.selectionChanged += Repaint;
             _nextPoll = 0;
         }
 
         void OnDisable()
         {
             EditorApplication.update -= Tick;
+            Selection.selectionChanged -= Repaint;
             _active?.Dispose();
         }
 
@@ -249,7 +251,59 @@ namespace AssetLockBoard.Editor
             }
             EditorGUILayout.EndHorizontal();
 
-            // Lock input
+            // Selection panel — selected asset quick-lock
+            var selPath = Selection.activeObject != null ? AssetDatabase.GetAssetPath(Selection.activeObject) : null;
+            var selFile = !string.IsNullOrEmpty(selPath) ? System.IO.Path.GetFileName(selPath) : null;
+            if (!string.IsNullOrEmpty(selFile) && selFile.Contains("."))
+            {
+                var selKey = selFile.Replace(".", "~");
+                Files.TryGetValue(selKey, out var selData);
+
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label(EditorGUIUtility.ObjectContent(Selection.activeObject, Selection.activeObject.GetType()).image, GUILayout.Width(20), GUILayout.Height(20));
+                GUILayout.Label(selFile, EditorStyles.boldLabel);
+                GUILayout.FlexibleSpace();
+
+                if (selData == null)
+                {
+                    // Not locked — show mode toggle + lock button
+                    var style = new GUIStyle(EditorStyles.miniButton);
+                    if (LockMode == "busy") GUI.color = new Color(0.91f, 0.63f, 0.30f);
+                    if (GUILayout.Button("Busy", style, GUILayout.Width(40))) LockMode = "busy";
+                    GUI.color = Color.white;
+                    if (LockMode == "lock") GUI.color = new Color(0.83f, 0.13f, 0.13f);
+                    if (GUILayout.Button("Lock", style, GUILayout.Width(40))) LockMode = "lock";
+                    GUI.color = Color.white;
+                    GUI.backgroundColor = LockMode == "lock" ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
+                    if (GUILayout.Button(LockMode == "lock" ? "\U0001F512 Lock" : "\U0001F536 Busy", GUILayout.Width(70)))
+                        DoLock(selFile);
+                    GUI.backgroundColor = Color.white;
+                }
+                else if (selData.ownerId == UserId)
+                {
+                    // Mine — show free button
+                    var modeLabel = selData.IsLock ? "\U0001F512 Locked" : "\U0001F536 Busy";
+                    GUILayout.Label(modeLabel, EditorStyles.miniLabel);
+                    if (GUILayout.Button("Free", GUILayout.Width(50)))
+                        DoFree(selFile);
+                }
+                else
+                {
+                    // Someone else's
+                    var disp = !string.IsNullOrEmpty(selData.ownerUsername)
+                        ? $"@{selData.ownerUsername}" : selData.ownerName;
+                    var modeLabel = selData.IsLock ? "\U0001F512" : "\U0001F536";
+                    GUI.color = selData.IsLock ? new Color(0.83f, 0.33f, 0.33f) : new Color(0.91f, 0.63f, 0.30f);
+                    GUILayout.Label($"{modeLabel} {disp}", EditorStyles.boldLabel);
+                    GUI.color = Color.white;
+                }
+
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.EndVertical();
+            }
+
+            // Manual lock input (+ button)
             if (_showLockInput)
             {
                 EditorGUILayout.BeginHorizontal();
