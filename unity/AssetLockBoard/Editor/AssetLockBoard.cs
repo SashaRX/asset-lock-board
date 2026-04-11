@@ -328,18 +328,18 @@ namespace AssetLockBoard.Editor
                 for (int i = 0; i < mine.Count; i++)
                 {
                     var (key, file) = mine[i];
-                    var r = EditorGUILayout.BeginHorizontal();
+                    var r = EditorGUILayout.BeginHorizontal(GUILayout.Height(20));
                     if (i % 2 == 1) EditorGUI.DrawRect(r, new Color(0, 0, 0, 0.08f));
                     GUILayout.Label(FileIcon(file.name), GUILayout.Width(16), GUILayout.Height(16));
-                    if (GUILayout.Button(file.name, EditorStyles.label))
+                    if (GUILayout.Button(file.name, EditorStyles.label, GUILayout.Height(18)))
                         PingFile(file.name);
                     GUILayout.FlexibleSpace();
-                    if (GUILayout.Button(file.IsLock ? "Lock" : "Busy", EditorStyles.miniButton, GUILayout.Width(36)))
+                    if (GUILayout.Button(file.IsLock ? "Lock" : "Busy", EditorStyles.miniButton, GUILayout.Width(36), GUILayout.Height(16)))
                         Put($"files/{key}/mode.json", $"\"{(file.IsLock ? "busy" : "lock")}\"", _ => Refresh());
                     if (file.watcherCount > 0)
-                        GUILayout.Label($"\u2022{file.watcherCount}", EditorStyles.miniLabel, GUILayout.Width(18));
-                    GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(36));
-                    if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(36)))
+                        GUILayout.Label($"\u2022{file.watcherCount}", EditorStyles.miniLabel, GUILayout.Width(18), GUILayout.Height(16));
+                    GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(36), GUILayout.Height(16));
+                    if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(36), GUILayout.Height(16)))
                         DoFree(file.name);
                     EditorGUILayout.EndHorizontal();
                 }
@@ -363,15 +363,15 @@ namespace AssetLockBoard.Editor
                     int oi = 0;
                     foreach (var (_, file) in group)
                     {
-                        var r = EditorGUILayout.BeginHorizontal();
+                        var r = EditorGUILayout.BeginHorizontal(GUILayout.Height(20));
                         if (oi++ % 2 == 1) EditorGUI.DrawRect(r, new Color(0, 0, 0, 0.08f));
                         GUILayout.Space(10);
                         GUILayout.Label(FileIcon(file.name), GUILayout.Width(16), GUILayout.Height(16));
-                        if (GUILayout.Button(file.name, EditorStyles.label))
+                        if (GUILayout.Button(file.name, EditorStyles.label, GUILayout.Height(18)))
                             PingFile(file.name);
                         GUILayout.FlexibleSpace();
-                        GUILayout.Label(file.IsLock ? "Lock" : "Busy", EditorStyles.miniLabel, GUILayout.Width(30));
-                        GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(36));
+                        GUILayout.Label(file.IsLock ? "Lock" : "Busy", EditorStyles.miniLabel, GUILayout.Width(30), GUILayout.Height(16));
+                        GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(36), GUILayout.Height(16));
                         EditorGUILayout.EndHorizontal();
                     }
                 }
