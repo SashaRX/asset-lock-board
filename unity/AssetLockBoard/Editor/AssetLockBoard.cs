@@ -252,7 +252,7 @@ namespace AssetLockBoard.Editor
             EditorGUILayout.EndHorizontal();
 
             // Selection panel — selected assets quick-lock
-            var selected = new System.Collections.Generic.List<(Object obj, string path, string filename)>();
+            var selected = new List<(UnityEngine.Object obj, string path, string filename)>();
             foreach (var obj in Selection.objects)
             {
                 if (obj == null) continue;
