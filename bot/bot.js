@@ -269,8 +269,8 @@ async function doFree(ctx, filename) {
 async function notifyWatchers(f) {
   for (const wId of Object.keys(f.watchers || {})) {
     bot.telegram.sendMessage(wId,
-      `\u{1F513} *${f.name}* freed! (was: ${f.ownerName})`,
-      { parse_mode: 'Markdown' }
+      `${fileEmoji(f.name)}<b>${f.name}</b>  🟢 свободен — ${shortName(f)}`,
+      { parse_mode: 'HTML' }
     ).catch(() => {});
   }
 }
@@ -386,7 +386,7 @@ onValue(ref(db, 'files'), async (snap) => {
   for (const [key, prev] of Object.entries(previousFiles)) {
     if (!current[key]) {
       for (const wId of Object.keys(prev.watchers || {})) {
-        queueNotify(wId, `\u{1F513} ${fileEmoji(prev.name)}<b>${prev.name}</b> свободен`);
+        queueNotify(wId, `${fileEmoji(prev.name)}<b>${prev.name}</b>  🟢 свободен — ${shortName(prev)}`);
       }
     }
   }
@@ -399,10 +399,12 @@ onValue(ref(db, 'files'), async (snap) => {
       const curW = Object.keys(cur.watchers || {});
       const added = curW.filter(w => !prevW.includes(w));
       for (const wId of added) {
-        const wName = cur.watchers[wId]?.name || 'Someone';
-        queueNotify(cur.ownerId, `\u{1F514} <b>${wName}</b> ожидает ${fileEmoji(cur.name)}<b>${cur.name}</b>`);
+        const w = cur.watchers[wId];
+        const wTag = w?.username ? '@' + w.username : w?.name || 'Someone';
+        queueNotify(cur.ownerId, `${fileEmoji(cur.name)}<b>${cur.name}</b>  👀 в очереди — ${wTag}`);
       }
     }
+    // New lock -> notify watchers of saved file (if any had it saved)
   }
 
   previousFiles = JSON.parse(JSON.stringify(current));
