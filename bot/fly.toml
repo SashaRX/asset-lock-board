@@ -1,4 +1,4 @@
-app = 'asset-lock-board-bot'
+app = 'alb-bot-sasharx'
 primary_region = 'ams'
 
 [build]
