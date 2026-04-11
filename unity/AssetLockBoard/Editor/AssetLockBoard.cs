@@ -251,61 +251,90 @@ namespace AssetLockBoard.Editor
             }
             EditorGUILayout.EndHorizontal();
 
-            // Selection panel — selected asset quick-lock
-            var selPath = Selection.activeObject != null ? AssetDatabase.GetAssetPath(Selection.activeObject) : null;
-            var selFile = !string.IsNullOrEmpty(selPath) ? System.IO.Path.GetFileName(selPath) : null;
-            if (!string.IsNullOrEmpty(selFile) && selFile.Contains("."))
+            // Selection panel — selected assets quick-lock
+            var selected = new System.Collections.Generic.List<(Object obj, string path, string filename)>();
+            foreach (var obj in Selection.objects)
             {
-                var selKey = selFile.Replace(".", "~");
-                Files.TryGetValue(selKey, out var selData);
+                if (obj == null) continue;
+                var p = AssetDatabase.GetAssetPath(obj);
+                if (string.IsNullOrEmpty(p)) continue;
+                var fn = System.IO.Path.GetFileName(p);
+                if (!string.IsNullOrEmpty(fn) && fn.Contains("."))
+                    selected.Add((obj, p, fn));
+            }
 
+            if (selected.Count > 0)
+            {
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+                // Mode toggle (shared for all)
                 EditorGUILayout.BeginHorizontal();
-                GUILayout.Label(EditorGUIUtility.ObjectContent(Selection.activeObject, Selection.activeObject.GetType()).image, GUILayout.Width(20), GUILayout.Height(20));
-                GUILayout.Label(selFile, EditorStyles.boldLabel);
+                var mStyle = new GUIStyle(EditorStyles.miniButton);
+                EditorGUILayout.LabelField("Mode:", GUILayout.Width(38));
+                if (LockMode == "busy") GUI.color = new Color(0.91f, 0.63f, 0.30f);
+                if (GUILayout.Button("Busy", mStyle, GUILayout.Width(42))) LockMode = "busy";
+                GUI.color = Color.white;
+                if (LockMode == "lock") GUI.color = new Color(0.83f, 0.13f, 0.13f);
+                if (GUILayout.Button("Lock", mStyle, GUILayout.Width(42))) LockMode = "lock";
+                GUI.color = Color.white;
                 GUILayout.FlexibleSpace();
 
-                if (selData == null)
+                // Bulk actions
+                var unlocked = selected.Where(s => !Files.ContainsKey(s.filename.Replace(".", "~"))).ToList();
+                var myFiles = selected.Where(s => { var k = s.filename.Replace(".", "~"); return Files.TryGetValue(k, out var f) && f.ownerId == UserId; }).ToList();
+                if (unlocked.Count > 1)
                 {
-                    // Not locked — show mode toggle + lock button
-                    var style = new GUIStyle(EditorStyles.miniButton);
-                    if (LockMode == "busy") GUI.color = new Color(0.91f, 0.63f, 0.30f);
-                    if (GUILayout.Button("Busy", style, GUILayout.Width(40))) LockMode = "busy";
-                    GUI.color = Color.white;
-                    if (LockMode == "lock") GUI.color = new Color(0.83f, 0.13f, 0.13f);
-                    if (GUILayout.Button("Lock", style, GUILayout.Width(40))) LockMode = "lock";
-                    GUI.color = Color.white;
                     GUI.backgroundColor = LockMode == "lock" ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
-                    if (GUILayout.Button(LockMode == "lock" ? "\U0001F512 Lock" : "\U0001F536 Busy", GUILayout.Width(70)))
-                        DoLock(selFile);
+                    if (GUILayout.Button($"{(LockMode == "lock" ? "\U0001F512" : "\U0001F536")} All ({unlocked.Count})", GUILayout.Width(70)))
+                        foreach (var s in unlocked) DoLock(s.filename);
                     GUI.backgroundColor = Color.white;
                 }
-                else if (selData.ownerId == UserId)
+                if (myFiles.Count > 1)
                 {
-                    // Mine — toggle mode + free
-                    GUI.color = selData.IsLock ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
-                    var modeBtn = selData.IsLock ? "\U0001F512 Lock" : "\U0001F536 Busy";
-                    if (GUILayout.Button(modeBtn, GUILayout.Width(65)))
-                    {
-                        var newMode = selData.IsLock ? "busy" : "lock";
-                        Put($"files/{selKey}/mode.json", $"\"{newMode}\"", _ => Refresh());
-                    }
-                    GUI.color = Color.white;
-                    if (GUILayout.Button("Free", GUILayout.Width(50)))
-                        DoFree(selFile);
+                    if (GUILayout.Button($"Free All ({myFiles.Count})", EditorStyles.miniButton, GUILayout.Width(72)))
+                        foreach (var s in myFiles) DoFree(s.filename);
                 }
-                else
+                EditorGUILayout.EndHorizontal();
+
+                // Per-file rows
+                foreach (var (obj, path, filename) in selected)
                 {
-                    // Someone else's
-                    var disp = !string.IsNullOrEmpty(selData.ownerUsername)
-                        ? $"@{selData.ownerUsername}" : selData.ownerName;
-                    var modeLabel = selData.IsLock ? "\U0001F512" : "\U0001F536";
-                    GUI.color = selData.IsLock ? new Color(0.83f, 0.33f, 0.33f) : new Color(0.91f, 0.63f, 0.30f);
-                    GUILayout.Label($"{modeLabel} {disp}", EditorStyles.boldLabel);
-                    GUI.color = Color.white;
+                    var key = filename.Replace(".", "~");
+                    Files.TryGetValue(key, out var fd);
+
+                    EditorGUILayout.BeginHorizontal();
+                    var icon = AssetDatabase.GetCachedIcon(path);
+                    if (icon != null) GUILayout.Label(new GUIContent(icon), GUILayout.Width(18), GUILayout.Height(18));
+                    GUILayout.Label(filename, GUILayout.ExpandWidth(true));
+
+                    if (fd == null)
+                    {
+                        GUI.backgroundColor = LockMode == "lock" ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
+                        if (GUILayout.Button(LockMode == "lock" ? "\U0001F512" : "\U0001F536", GUILayout.Width(28)))
+                            DoLock(filename);
+                        GUI.backgroundColor = Color.white;
+                    }
+                    else if (fd.ownerId == UserId)
+                    {
+                        GUI.color = fd.IsLock ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
+                        if (GUILayout.Button(fd.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(28)))
+                            Put($"files/{key}/mode.json", $"\"{(fd.IsLock ? "busy" : "lock")}\"", _ => Refresh());
+                        GUI.color = Color.white;
+                        if (GUILayout.Button("×", EditorStyles.miniButton, GUILayout.Width(20)))
+                            DoFree(filename);
+                    }
+                    else
+                    {
+                        var disp = !string.IsNullOrEmpty(fd.ownerUsername) ? $"@{fd.ownerUsername}" : fd.ownerName;
+                        GUI.color = fd.IsLock ? new Color(0.83f, 0.33f, 0.33f) : new Color(0.91f, 0.63f, 0.30f);
+                        GUILayout.Label(fd.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(18));
+                        GUILayout.Label(disp, EditorStyles.miniLabel, GUILayout.Width(80));
+                        GUI.color = Color.white;
+                    }
+
+                    EditorGUILayout.EndHorizontal();
                 }
 
-                EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();
             }
 
@@ -403,26 +432,33 @@ namespace AssetLockBoard.Editor
 
         static GUIContent FileIcon(string filename)
         {
-            var ext = System.IO.Path.GetExtension(filename).ToLowerInvariant();
-            var iconName = ext switch
+            // Try to find the actual asset in the project
+            var guids = AssetDatabase.FindAssets(System.IO.Path.GetFileNameWithoutExtension(filename));
+            foreach (var guid in guids)
             {
-                ".unity" => "SceneAsset Icon",
-                ".prefab" => "Prefab Icon",
-                ".fbx" or ".obj" or ".blend" => "Mesh Icon",
-                ".mat" => "Material Icon",
-                ".cs" => "cs Script Icon",
-                ".shader" or ".compute" => "Shader Icon",
-                ".png" or ".jpg" or ".jpeg" or ".tga" or ".psd" or ".exr" => "Texture Icon",
-                ".anim" => "AnimationClip Icon",
-                ".controller" => "AnimatorController Icon",
-                ".asset" => "ScriptableObject Icon",
-                ".wav" or ".mp3" or ".ogg" => "AudioClip Icon",
-                ".playable" => "PlayableAsset Icon",
-                ".lighting" => "LightingSettings Icon",
-                _ => "DefaultAsset Icon",
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (System.IO.Path.GetFileName(path) == filename)
+                {
+                    var icon = AssetDatabase.GetCachedIcon(path);
+                    if (icon != null) return new GUIContent(icon);
+                }
+            }
+            // Fallback: type-based icon
+            var ext = System.IO.Path.GetExtension(filename).ToLowerInvariant();
+            var t = ext switch
+            {
+                ".unity" => typeof(SceneAsset),
+                ".prefab" => typeof(GameObject),
+                ".mat" => typeof(Material),
+                ".cs" => typeof(MonoScript),
+                ".shader" or ".compute" => typeof(Shader),
+                ".png" or ".jpg" or ".jpeg" or ".tga" or ".psd" or ".exr" => typeof(Texture2D),
+                ".anim" => typeof(AnimationClip),
+                ".asset" => typeof(ScriptableObject),
+                ".wav" or ".mp3" or ".ogg" => typeof(AudioClip),
+                _ => typeof(DefaultAsset),
             };
-            var content = EditorGUIUtility.IconContent(iconName);
-            return content ?? EditorGUIUtility.IconContent("DefaultAsset Icon");
+            return EditorGUIUtility.ObjectContent(null, t);
         }
 
         // --- JSON ---
