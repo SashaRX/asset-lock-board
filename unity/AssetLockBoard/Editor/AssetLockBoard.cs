@@ -354,6 +354,7 @@ namespace AssetLockBoard.Editor
                 {
                     EditorGUILayout.BeginHorizontal();
                     GUILayout.Label(file.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(18));
+                    GUILayout.Label(FileIcon(file.name), GUILayout.Width(18), GUILayout.Height(18));
                     GUILayout.Label(file.name, GUILayout.ExpandWidth(true));
                     GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(40));
                     if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(38)))
@@ -378,6 +379,7 @@ namespace AssetLockBoard.Editor
                         EditorGUILayout.BeginHorizontal();
                         GUILayout.Space(20);
                         GUILayout.Label(file.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(18));
+                        GUILayout.Label(FileIcon(file.name), GUILayout.Width(18), GUILayout.Height(18));
                         GUILayout.Label(file.name);
                         EditorGUILayout.EndHorizontal();
                     }
@@ -397,6 +399,30 @@ namespace AssetLockBoard.Editor
         {
             var dt = DateTimeOffset.FromUnixTimeMilliseconds(ms).LocalDateTime;
             return dt.ToString("HH:mm");
+        }
+
+        static GUIContent FileIcon(string filename)
+        {
+            var ext = System.IO.Path.GetExtension(filename).ToLowerInvariant();
+            var iconName = ext switch
+            {
+                ".unity" => "SceneAsset Icon",
+                ".prefab" => "Prefab Icon",
+                ".fbx" or ".obj" or ".blend" => "Mesh Icon",
+                ".mat" => "Material Icon",
+                ".cs" => "cs Script Icon",
+                ".shader" or ".compute" => "Shader Icon",
+                ".png" or ".jpg" or ".jpeg" or ".tga" or ".psd" or ".exr" => "Texture Icon",
+                ".anim" => "AnimationClip Icon",
+                ".controller" => "AnimatorController Icon",
+                ".asset" => "ScriptableObject Icon",
+                ".wav" or ".mp3" or ".ogg" => "AudioClip Icon",
+                ".playable" => "PlayableAsset Icon",
+                ".lighting" => "LightingSettings Icon",
+                _ => "DefaultAsset Icon",
+            };
+            var content = EditorGUIUtility.IconContent(iconName);
+            return content ?? EditorGUIUtility.IconContent("DefaultAsset Icon");
         }
 
         // --- JSON ---
