@@ -407,7 +407,7 @@ namespace AssetLockBoard.Editor
                     FileName(file.name);
                     GUILayout.FlexibleSpace();
                     ModeTag(file, key);
-                    if (file.watcherCount > 0) WatcherBadge(file.watcherCount);
+                    WatcherCol(file.watcherCount);
                     GUILayout.Label(Fmt(file.since), _dimLabel, GUILayout.Width(36));
                     if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(36))) DoFree(file.name);
                     GUILayout.Space(4);
@@ -464,7 +464,7 @@ namespace AssetLockBoard.Editor
         void ModeTag(FileData file, string key)
         {
             GUI.color = file.IsLock ? C_Red : C_Orange;
-            if (GUILayout.Button(file.IsLock ? "L" : "B", EditorStyles.miniButton, GUILayout.Width(20)))
+            if (GUILayout.Button(file.IsLock ? "Lock" : "Busy", EditorStyles.miniButton, GUILayout.Width(38)))
                 Put($"files/{key}/mode.json", $"\"{(file.IsLock ? "busy" : "lock")}\"", _ => Refresh());
             GUI.color = Color.white;
         }
@@ -472,15 +472,20 @@ namespace AssetLockBoard.Editor
         static void ModeLabel(FileData file)
         {
             GUI.color = file.IsLock ? C_Red : C_Orange;
-            GUILayout.Label(file.IsLock ? "L" : "B", GUILayout.Width(12));
+            GUILayout.Label(file.IsLock ? "Lock" : "Busy", _dimLabel, GUILayout.Width(32));
             GUI.color = Color.white;
         }
 
-        static void WatcherBadge(int count)
+        static void WatcherCol(int count)
         {
-            _dimLabel.normal.textColor = C_Orange;
-            GUILayout.Label($"\u25CF{count}", _dimLabel, GUILayout.Width(18));
-            _dimLabel.normal.textColor = C_TextDim;
+            if (count > 0)
+            {
+                _dimLabel.normal.textColor = C_Orange;
+                GUILayout.Label($"\u25CF{count}", _dimLabel, GUILayout.Width(20));
+                _dimLabel.normal.textColor = C_TextDim;
+            }
+            else
+                GUILayout.Space(20);
         }
 
         static void SectionHeader(string text, Action action, string btnText)
