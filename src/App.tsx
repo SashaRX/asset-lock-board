@@ -43,6 +43,7 @@ const toName = (s: string) => { const parts = s.replace(/\\/g, '/').split('/'); 
 interface FileData {
   name: string; ownerId: number; ownerName: string; ownerUsername?: string;
   ownerColor: string; watchers: Record<string, { name: string; color: string }>; since: number;
+  mode?: 'busy' | 'lock';
 }
 interface FilesMap { [key: string]: FileData }
 const COLORS = ['#4A90D9','#E8A04C','#B07ACC','#D35555','#5AAFAF','#8BC34A','#FF7043','#AB47BC'];
@@ -56,7 +57,8 @@ function Av({user,size=18}:{user:{name:string;color:string;photo?:string};size?:
   if (user.photo && imgOk) return <img src={user.photo} alt={user.name[0]} width={size} height={size} onError={()=>setImgOk(false)} className="shrink-0 block rounded-full" style={{width:size,height:size,objectFit:'cover'}}/>;
   return <span className="shrink-0 inline-flex items-center justify-center rounded-full font-bold text-white" style={{width:size,height:size,background:user.color,fontSize:size*.55}}>{user.name[0]}</span>;
 }
-function LkIco({size=13}:{size?:number}) {
+function LkIco({size=13,mode='lock'}:{size?:number;mode?:'busy'|'lock'}) {
+  if (mode==='busy') return <svg width={size} height={size} viewBox="0 0 16 16" className="shrink-0 block"><circle cx="8" cy="8" r="5" fill={T.accentOrange} opacity=".85"/></svg>;
   return <svg width={size} height={size} viewBox="0 0 16 16" className="shrink-0 block"><rect x="2" y="7" width="12" height="8" rx="1.5" fill={T.lockRed} opacity=".85"/><path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke={T.lockRed} strokeWidth="1.5" strokeLinecap="round" opacity=".85"/></svg>;
 }
 function BellIco({active,onClick,size=15}:{active:boolean;onClick?:()=>void;size?:number}) {
@@ -142,6 +144,7 @@ export default function App() {
   const [input, setInput] = useState('');
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
+  const [lockMode, setLockMode] = useState<'busy'|'lock'>('busy');
   const [notif, setNotif] = useState<string|null>(null);
   const [expanded, setExpanded] = useState<Record<number,boolean>>({});
   const [menuOpen, setMenuOpen] = useState(false);
@@ -258,14 +261,14 @@ export default function App() {
           locked.push(n);
         }
       } else {
-        updates[`files/${k}`] = { name: n, ownerId: me.id, ownerName: me.name, ownerUsername: me.username || '', ownerColor: me.color, watchers: {}, since: Date.now() };
+        updates[`files/${k}`] = { name: n, ownerId: me.id, ownerName: me.name, ownerUsername: me.username || '', ownerColor: me.color, watchers: {}, since: Date.now(), mode: lockMode };
         taken.push(n);
       }
     }
     await update(ref(db), updates);
     setSel(new Set()); setInput('');
     const msgs: string[] = [];
-    if (taken.length) msgs.push('Busy: ' + taken.join(', '));
+    if (taken.length) msgs.push((lockMode==='lock'?'🔒 Locked: ':'🔶 Busy: ') + taken.join(', '));
     if (locked.length) msgs.push('Watching: ' + locked.join(', '));
     if (msgs.length) { flash(msgs.join(' | ')); haptic(taken.length ? 'medium' : 'light'); }
     setAddOpen(false);
@@ -444,7 +447,7 @@ export default function App() {
             <button onClick={()=>freeFile(f.name)} style={{height:14,borderRadius:3,border:`1px solid ${T.bgMid}`,background:T.textMuted,color:T.textBright,fontSize:9,cursor:"pointer",padding:0}}>Free</button>
           </div>)}
           {ghosts.map(([k,f],i)=><div key={k} className={rowStyle} style={{gridTemplateColumns:"14px 18px 1fr 20px 18px 38px",height:18,padding:"0 6px",columnGap:3,opacity:.45,background:(mine.length+i)%2?T.bgRow:"transparent"}}>
-            <LkIco size={11}/><FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:T.textBright}}>{f.name}</span>
+            <LkIco size={11} mode={f.mode||'busy'}/><FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:T.textBright}}>{f.name}</span>
             <div className="flex justify-center"><BellIco active onClick={()=>toggleWatch(f.name)} size={13}/></div>
             <Av user={{name:f.ownerName,color:f.ownerColor}} size={15}/><span className="truncate" style={{fontSize:10,color:f.ownerColor,fontWeight:600}}>{dn(f.ownerName,f.ownerUsername)}</span>
           </div>)}
@@ -456,8 +459,15 @@ export default function App() {
           <textarea rows={2} placeholder="Level_05.unity, Rock.prefab" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submit();}}} style={{width:"100%",boxSizing:"border-box",padding:"4px 6px",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:3,color:T.text,fontSize:11,fontFamily:"Consolas,monospace",resize:"none",outline:"none",lineHeight:"16px"}}/>
           {typed.length>0&&<div style={{marginTop:2}}>{typed.map((n,i)=>{const k=toKey(n);const b=files[k]&&files[k].ownerId!==me.id;const m=files[k]&&files[k].ownerId===me.id;return<div key={i} className="flex items-center gap-1" style={{height:18}}><FIcon ext={getExt(n)} size={14}/><span className="flex-1" style={{fontSize:11,color:b?T.accentOrange:m?T.accentGreen:T.text}}>{n}</span>{b&&<><BellIco active size={12}/><span style={{fontSize:9,color:T.accentOrange,fontWeight:600}}>{dn(files[k].ownerName,files[k].ownerUsername)}</span></>}{m&&<span style={{fontSize:9,color:T.accentGreen}}>yours</span>}</div>;})}</div>}
           <div style={{fontSize:9,fontWeight:600,color:T.textDim,textTransform:"uppercase",marginTop:4,marginBottom:2}}>Saved</div>
-          <div className="flex flex-wrap gap-0.5">{saved.map(n=>{const k=toKey(n);const act=files[k];const im=act&&act.ownerId===me.id;const on=sel.has(n);return<div key={n} onClick={()=>togSel(n)} className="flex items-center gap-1 cursor-pointer" style={{padding:"2px 4px",background:on?T.bgSel:T.bgInput,borderRadius:3,border:`1px solid ${on?T.accent:"transparent"}`,opacity:im?.5:1}}><FIcon ext={getExt(n)} size={13}/><span style={{fontSize:10,color:T.text}}>{n.replace(/\.[^.]+$/,"")}</span><span style={{fontSize:9,color:T.textDim}}>.{getExt(n)}</span>{act&&!im&&<LkIco size={9}/>}{on&&<span style={{fontSize:9,color:T.accent,fontWeight:700}}>✓</span>}<button onClick={e=>{e.stopPropagation();rmSaved(n);}} style={{background:"none",border:"none",color:T.textMuted,fontSize:11,cursor:"pointer",padding:"0 1px",lineHeight:1}}>×</button></div>;})}</div>
-          {hasAny&&<button onClick={submit} style={{width:"100%",height:26,borderRadius:4,border:`1px solid ${T.bgMid}`,background:T.bgSel,color:T.textBright,fontSize:12,fontWeight:700,cursor:"pointer",marginTop:4}}>🔒 Busy ({[...new Set([...typed,...sel])].length})</button>}
+          <div className="flex flex-wrap gap-0.5">{saved.map(n=>{const k=toKey(n);const act=files[k];const im=act&&act.ownerId===me.id;const on=sel.has(n);return<div key={n} onClick={()=>togSel(n)} className="flex items-center gap-1 cursor-pointer" style={{padding:"2px 4px",background:on?T.bgSel:T.bgInput,borderRadius:3,border:`1px solid ${on?T.accent:"transparent"}`,opacity:im?.5:1}}><FIcon ext={getExt(n)} size={13}/><span style={{fontSize:10,color:T.text}}>{n.replace(/\.[^.]+$/,"")}</span><span style={{fontSize:9,color:T.textDim}}>.{getExt(n)}</span>{act&&!im&&<LkIco size={9} mode={act.mode||'busy'}/>}{on&&<span style={{fontSize:9,color:T.accent,fontWeight:700}}>✓</span>}<button onClick={e=>{e.stopPropagation();rmSaved(n);}} style={{background:"none",border:"none",color:T.textMuted,fontSize:11,cursor:"pointer",padding:"0 1px",lineHeight:1}}>×</button></div>;})}</div>
+          {hasAny&&<div style={{marginTop:4}}>
+            <div className="flex gap-1" style={{marginBottom:4}}>
+              <button onClick={()=>setLockMode('busy')} style={{flex:1,height:22,borderRadius:3,border:`1px solid ${lockMode==='busy'?T.accentOrange:T.bgMid}`,background:lockMode==='busy'?T.bgRow:'transparent',color:lockMode==='busy'?T.accentOrange:T.textDim,fontSize:10,fontWeight:600,cursor:'pointer'}}>🔶 Busy</button>
+              <button onClick={()=>setLockMode('lock')} style={{flex:1,height:22,borderRadius:3,border:`1px solid ${lockMode==='lock'?T.lockRed:T.bgMid}`,background:lockMode==='lock'?T.bgRow:'transparent',color:lockMode==='lock'?T.lockRed:T.textDim,fontSize:10,fontWeight:600,cursor:'pointer'}}>🔒 Lock</button>
+            </div>
+            <div style={{fontSize:9,color:T.textDim,marginBottom:4}}>{lockMode==='lock'?'Blocks saving in Unity':'Informational — can still edit'}</div>
+            <button onClick={submit} style={{width:"100%",height:26,borderRadius:4,border:`1px solid ${T.bgMid}`,background:lockMode==='lock'?'#5A2020':T.bgSel,color:T.textBright,fontSize:12,fontWeight:700,cursor:"pointer"}}>{lockMode==='lock'?'🔒':'🔶'} {lockMode==='lock'?'Lock':'Busy'} ({[...new Set([...typed,...sel])].length})</button>
+          </div>}
         </div>}
         {groups.length>0&&<div className="flex items-center" style={{padding:"6px 6px 2px"}}><span style={{fontSize:9,fontWeight:600,color:T.textDim,textTransform:"uppercase",letterSpacing:".04em"}}>Locked ({others.length})</span></div>}
         {groups.map(g=>{const uid=g.owner.id;const isExp=!!expanded[uid];const vis=isExp?g.files:g.files.slice(0,CL);const more=g.files.length>CL;return<div key={uid} style={{borderTop:`1px solid ${T.borderLight}`,marginTop:2}}>
@@ -466,7 +476,7 @@ export default function App() {
             <span className="font-semibold" style={{fontSize:11,color:g.owner.color}}>{dn(g.owner.name,g.owner.username)}</span><Av user={g.owner} size={18}/>
           </div>
           {vis.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:isAdmin?"13px 16px 1fr 20px 32px":"13px 16px 1fr 20px",height:18,padding:"0 4px 0 14px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
-            <LkIco size={11}/><FIcon ext={getExt(f.name)} size={14}/><span className="truncate" style={{fontSize:11,color:T.text}}>{f.name}</span>
+            <LkIco size={11} mode={f.mode||'busy'}/><FIcon ext={getExt(f.name)} size={14}/><span className="truncate" style={{fontSize:11,color:T.text}}>{f.name}</span>
             <div className="flex justify-center"><BellIco active={isW(k)} onClick={()=>toggleWatch(f.name)} size={13}/></div>
             {isAdmin&&<button onClick={()=>freeFile(f.name)} style={{height:14,borderRadius:3,border:`1px solid ${T.bgMid}`,background:T.textMuted,color:T.textBright,fontSize:9,cursor:"pointer",padding:0}}>Free</button>}
           </div>)}
