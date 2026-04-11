@@ -1,0 +1,12 @@
+{
+  "name": "com.sasharx.asset-lock-board",
+  "version": "1.0.0",
+  "displayName": "Asset Lock Board",
+  "description": "File locking for Unity teams. Shows lock status in Project window, blocks saving locked files, context menu Lock/Free.",
+  "unity": "2021.3",
+  "author": {
+    "name": "SashaRX",
+    "url": "https://github.com/SashaRX/asset-lock-board"
+  },
+  "keywords": ["lock", "team", "collaboration", "version-control"]
+}
