@@ -255,7 +255,7 @@ namespace AssetLockBoard.Editor
                 var p = AssetDatabase.GetAssetPath(obj);
                 if (string.IsNullOrEmpty(p)) continue;
                 var fn = System.IO.Path.GetFileName(p);
-                if (string.IsNullOrEmpty(fn) || !fn.Contains(".")) continue;
+                if (string.IsNullOrEmpty(fn)) continue;
                 var sk = fn.Replace(".", "~");
                 if (Files.TryGetValue(sk, out var ef) && ef.ownerId == UserId) continue; // skip yours
                 selected.Add((obj, p, fn));
@@ -302,7 +302,7 @@ namespace AssetLockBoard.Editor
             {
                 EditorGUILayout.BeginHorizontal();
                 _lockInput = EditorGUILayout.TextField(_lockInput);
-                EditorGUI.BeginDisabledGroup(string.IsNullOrWhiteSpace(_lockInput) || !_lockInput.Contains("."));
+                EditorGUI.BeginDisabledGroup(string.IsNullOrWhiteSpace(_lockInput));
                 if (GUILayout.Button("Busy", EditorStyles.miniButtonLeft, GUILayout.Width(36)))
                 { LockMode = "busy"; DoLock(_lockInput.Trim()); _lockInput = ""; _showLockInput = false; }
                 if (GUILayout.Button("Lock", EditorStyles.miniButtonRight, GUILayout.Width(36)))

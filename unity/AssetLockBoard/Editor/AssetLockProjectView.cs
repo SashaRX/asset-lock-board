@@ -85,7 +85,7 @@ namespace AssetLockBoard.Editor
             if (string.IsNullOrEmpty(path)) return;
 
             var filename = Path.GetFileName(path);
-            if (string.IsNullOrEmpty(filename) || !filename.Contains(".")) return;
+            if (string.IsNullOrEmpty(filename)) return;
 
             var key = filename.Replace(".", "~");
             if (!AssetLockWindow.Files.TryGetValue(key, out var file)) return;
@@ -138,7 +138,7 @@ namespace AssetLockBoard.Editor
         {
             var path = AssetDatabase.GetAssetPath(Selection.activeObject);
             var filename = Path.GetFileName(path);
-            if (!string.IsNullOrEmpty(filename) && filename.Contains("."))
+            if (!string.IsNullOrEmpty(filename))
                 AssetLockWindow.LockFileStatic(filename);
         }
 
@@ -148,7 +148,7 @@ namespace AssetLockBoard.Editor
             if (!AssetLockWindow.Ready || Selection.activeObject == null) return false;
             var path = AssetDatabase.GetAssetPath(Selection.activeObject);
             var filename = Path.GetFileName(path);
-            if (string.IsNullOrEmpty(filename) || !filename.Contains(".")) return false;
+            if (string.IsNullOrEmpty(filename)) return false;
             var key = filename.Replace(".", "~");
             return !AssetLockWindow.Files.ContainsKey(key);
         }
@@ -158,7 +158,7 @@ namespace AssetLockBoard.Editor
         {
             var path = AssetDatabase.GetAssetPath(Selection.activeObject);
             var filename = Path.GetFileName(path);
-            if (!string.IsNullOrEmpty(filename) && filename.Contains("."))
+            if (!string.IsNullOrEmpty(filename))
                 AssetLockWindow.FreeFileStatic(filename);
         }
 
@@ -168,7 +168,7 @@ namespace AssetLockBoard.Editor
             if (!AssetLockWindow.Ready || Selection.activeObject == null) return false;
             var path = AssetDatabase.GetAssetPath(Selection.activeObject);
             var filename = Path.GetFileName(path);
-            if (string.IsNullOrEmpty(filename) || !filename.Contains(".")) return false;
+            if (string.IsNullOrEmpty(filename)) return false;
             var key = filename.Replace(".", "~");
             return AssetLockWindow.Files.TryGetValue(key, out var f) && f.ownerId == AssetLockWindow.CurrentUserId;
         }
