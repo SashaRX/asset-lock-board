@@ -45,6 +45,7 @@ export interface AppUser {
   username?: string;
   color: string;
   photo?: string;
+  provider?: 'simple' | 'telegram' | 'google';
 }
 
 const COLORS = [
@@ -90,7 +91,7 @@ export function loginWithTelegram(tgUser: TelegramLoginUser): AppUser {
     name: tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name[0] + '.' : ''),
     username: tgUser.username,
     color: colorForId(tgUser.id),
-    // photo comes from Firebase (bot saves working URL), not from Login Widget (404s)
+    provider: 'telegram',
   };
   localStorage.setItem('alb_user', JSON.stringify(user));
   return user;
@@ -103,7 +104,7 @@ export function logout() {
 
 export function loginSimple(name: string): AppUser {
   const id = Date.now() + Math.floor(Math.random() * 1000);
-  const user: AppUser = { id, name: name.trim(), color: colorForId(id) };
+  const user: AppUser = { id, name: name.trim(), color: colorForId(id), provider: 'simple' };
   localStorage.setItem('alb_user', JSON.stringify(user));
   return user;
 }
@@ -165,6 +166,7 @@ function googleUserToAppUser(u: {uid:string; displayName:string|null; photoURL:s
     name: u.displayName || 'User',
     color: colorForId(numId),
     photo: u.photoURL || undefined,
+    provider: 'google',
   };
   localStorage.setItem('alb_user', JSON.stringify(user));
   return user;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { db, ref, onValue, set, remove, update } from './firebase';
+import { db, ref, onValue, set, remove, update, get } from './firebase';
 import { getUser, initTelegram, haptic, hapticNotify, loginWithTelegram, loginWithGoogle, loginSimple, linkTelegram, linkGoogle, checkGoogleRedirect, isTgWebApp, logout, type AppUser, type TelegramLoginUser } from './auth';
 import { getIconSrc, getExt } from './icons';
 
@@ -151,7 +151,7 @@ export default function App() {
   const [pipWin, setPipWin] = useState<Window | null>(null);
   const [notifyPref, setNotifyPref] = useState<'both'|'browser'|'telegram'|'off'>(() => (localStorage.getItem('alb_notify') as any) || 'both');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [allUsers, setAllUsers] = useState<Record<string,{name:string;color:string;username?:string;photo?:string}>>({});
+  const [allUsers, setAllUsers] = useState<Record<string,{name:string;color:string;username?:string;photo?:string;provider?:string;createdAt?:number;lastSeen?:number}>>({});
   const [adminOpen, setAdminOpen] = useState(false);
   const tRef = useRef<ReturnType<typeof setTimeout>>();
   const prevFilesRef = useRef<FilesMap>({});
@@ -214,10 +214,19 @@ export default function App() {
   useEffect(() => {
     if (!me) return;
     const userRef = ref(db, `users/${me.id}`);
-    // Write name/username/color but never overwrite photo (bot manages it)
-    const profileData: Record<string, string> = { name: me.name, username: me.username || '', color: me.color };
-    // Use update instead of set to preserve existing photo from bot
-    update(ref(db), Object.fromEntries(Object.entries(profileData).map(([k, v]) => [`users/${me.id}/${k}`, v])));
+    // Write profile + metadata (createdAt only if missing)
+    const profileUp: Record<string, unknown> = {
+      [`users/${me.id}/name`]: me.name,
+      [`users/${me.id}/username`]: me.username || '',
+      [`users/${me.id}/color`]: me.color,
+      [`users/${me.id}/lastSeen`]: Date.now(),
+      [`users/${me.id}/provider`]: me.provider || 'simple',
+    };
+    // Check if createdAt exists before writing
+    get(ref(db, `users/${me.id}/createdAt`)).then(snap => {
+      if (!snap.exists()) profileUp[`users/${me.id}/createdAt`] = Date.now();
+      update(ref(db), profileUp);
+    }).catch(() => update(ref(db), profileUp));
     // Read back (bot may have saved a working photo URL)
     const unsub = onValue(userRef, snap => {
       const data = snap.val();
@@ -287,6 +296,27 @@ export default function App() {
     if (!isAdmin) return;
     await remove(ref(db,`files/${fileKey}/watchers/${uid}`));
     haptic('light');
+  };
+
+  const mergeInto = async (fromUid:string) => {
+    if (!isAdmin) return;
+    const ups:Record<string,unknown> = {};
+    Object.entries(files).forEach(([k,f])=>{
+      if (String(f.ownerId)===fromUid) {
+        ups[`files/${k}/ownerId`]=me.id;
+        ups[`files/${k}/ownerName`]=me.name;
+        ups[`files/${k}/ownerUsername`]=me.username||'';
+        ups[`files/${k}/ownerColor`]=me.color;
+      }
+      if (f.watchers?.[fromUid]) {
+        ups[`files/${k}/watchers/${me.id}`]={name:me.name,color:me.color};
+        ups[`files/${k}/watchers/${fromUid}`]=null;
+      }
+    });
+    ups[`users/${fromUid}`]=null;
+    await update(ref(db),ups);
+    flash('User merged');
+    hapticNotify('success');
   };
 
   const togglePip = async () => {
@@ -366,21 +396,32 @@ export default function App() {
             {isAdmin&&<>
               <div style={{borderTop:`1px solid ${T.borderInput}`,marginTop:4,paddingTop:4}}/>
               <div onClick={()=>setAdminOpen(!adminOpen)} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:T.accentOrange,borderRadius:3}} onMouseEnter={e=>e.currentTarget.style.background=T.bgHover} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <span style={{fontSize:12}}>⚙</span> Admin {adminOpen?'▴':'▾'}
+                <span style={{fontSize:12}}>⚙</span> Admin ({Object.keys(allUsers).length}) {adminOpen?'▴':'▾'}
               </div>
-              {adminOpen&&<div style={{maxHeight:200,overflowY:'auto',padding:"2px 4px"}}>
-                {Object.entries(allUsers).filter(([uid])=>String(uid)!==String(me.id)).map(([uid,u])=>{
+              {adminOpen&&<div style={{maxHeight:260,overflowY:'auto',padding:"2px 4px"}}>
+                {Object.entries(allUsers).map(([uid,u])=>{
+                  const isSelf=String(uid)===String(me.id);
                   const userFiles=Object.entries(files).filter(([,f])=>String(f.ownerId)===uid);
                   const watching=Object.entries(files).filter(([,f])=>f.watchers?.[uid]);
-                  return <div key={uid} className="flex items-center gap-1.5" style={{padding:"3px 6px",borderRadius:3,fontSize:10}}>
-                    <Av user={{name:u.name||'?',color:u.color||T.textMuted}} size={16}/>
-                    <span className="flex-1 truncate" style={{color:T.text}}>{u.name||uid}{u.username?` @${u.username}`:''}</span>
-                    {userFiles.length>0&&<span style={{color:T.accentOrange,fontSize:9}}>{userFiles.length}🔒</span>}
-                    {watching.length>0&&<span style={{color:T.accent,fontSize:9}}>{watching.length}👁</span>}
-                    <span onClick={()=>{if(confirm(`Remove ${u.name||uid} and free their files?`))purgeUser(uid);}} className="cursor-pointer" style={{color:T.accentRed,fontSize:12,padding:"0 2px",lineHeight:1}}>×</span>
+                  const prov=u.provider||'?';
+                  const provIcon={telegram:'✈',google:'G',simple:'✎'}[prov]||'?';
+                  const age=u.createdAt?new Date(u.createdAt).toLocaleDateString():'—';
+                  const seen=u.lastSeen?new Date(u.lastSeen).toLocaleDateString():'—';
+                  return <div key={uid} style={{padding:"3px 6px",borderRadius:3,fontSize:10,borderBottom:`1px solid ${T.border}`,opacity:isSelf?.6:1}}>
+                    <div className="flex items-center gap-1.5">
+                      <Av user={{name:u.name||'?',color:u.color||T.textMuted}} size={16}/>
+                      <span className="flex-1 truncate" style={{color:T.text,fontWeight:isSelf?700:400}}>{u.name||uid}{isSelf?' (you)':''}</span>
+                      <span title={prov} style={{color:T.textDim,fontSize:9,background:T.bgRow,borderRadius:2,padding:"0 3px"}}>{provIcon}</span>
+                      {userFiles.length>0&&<span style={{color:T.accentOrange,fontSize:9}}>{userFiles.length}🔒</span>}
+                      {watching.length>0&&<span style={{color:T.accent,fontSize:9}}>{watching.length}👁</span>}
+                      {!isSelf&&<span onClick={()=>{if(confirm(`Merge ${u.name||uid} → ${me.name}? (migrate files & watchers)`))mergeInto(uid);}} className="cursor-pointer" title="Merge into you" style={{color:T.accent,fontSize:11,padding:"0 2px"}}>⤵</span>}
+                      {!isSelf&&<span onClick={()=>{if(confirm(`Remove ${u.name||uid} and free their files?`))purgeUser(uid);}} className="cursor-pointer" style={{color:T.accentRed,fontSize:12,padding:"0 2px",lineHeight:1}}>×</span>}
+                    </div>
+                    <div style={{marginLeft:22,color:T.textDim,fontSize:9}}>
+                      id:{uid} · reg:{age} · seen:{seen}
+                    </div>
                   </div>;
                 })}
-                {Object.keys(allUsers).filter(uid=>String(uid)!==String(me.id)).length===0&&<div style={{padding:"4px 10px",fontSize:10,color:T.textMuted}}>No other users</div>}
               </div>}
             </>}
             <div onClick={()=>{logout();setMe(null);setMenuOpen(false);}} className="cursor-pointer" style={{padding:"6px 10px",fontSize:11,color:T.accentRed,borderRadius:4}} onMouseEnter={e=>(e.currentTarget.style.background=T.bgHover)} onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>Log out</div>
