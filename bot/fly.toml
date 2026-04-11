@@ -1,0 +1,9 @@
+app = 'asset-lock-board-bot'
+primary_region = 'ams'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'
