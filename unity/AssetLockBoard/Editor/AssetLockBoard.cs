@@ -382,11 +382,22 @@ namespace AssetLockBoard.Editor
                 foreach (var (key, file) in mine)
                 {
                     EditorGUILayout.BeginHorizontal();
-                    GUILayout.Label(file.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(18));
                     GUILayout.Label(FileIcon(file.name), GUILayout.Width(18), GUILayout.Height(18));
                     GUILayout.Label(file.name, GUILayout.ExpandWidth(true));
-                    GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(40));
-                    if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(38)))
+                    // Mode toggle
+                    GUI.color = file.IsLock ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
+                    if (GUILayout.Button(file.IsLock ? "\U0001F512" : "\U0001F536", EditorStyles.miniButton, GUILayout.Width(26)))
+                        Put($"files/{key}/mode.json", $"\"{(file.IsLock ? "busy" : "lock")}\"", _ => Refresh());
+                    GUI.color = Color.white;
+                    // Watchers
+                    if (file.watcherCount > 0)
+                        GUILayout.Label($"\U0001F514{file.watcherCount}", EditorStyles.miniLabel, GUILayout.Width(24));
+                    else
+                        GUILayout.Space(24);
+                    // Time
+                    GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(36));
+                    // Free
+                    if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(36)))
                         DoFree(file.name);
                     EditorGUILayout.EndHorizontal();
                 }
@@ -407,9 +418,12 @@ namespace AssetLockBoard.Editor
                     {
                         EditorGUILayout.BeginHorizontal();
                         GUILayout.Space(20);
-                        GUILayout.Label(file.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(18));
                         GUILayout.Label(FileIcon(file.name), GUILayout.Width(18), GUILayout.Height(18));
-                        GUILayout.Label(file.name);
+                        GUILayout.Label(file.name, GUILayout.ExpandWidth(true));
+                        GUI.color = file.IsLock ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
+                        GUILayout.Label(file.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(18));
+                        GUI.color = Color.white;
+                        GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(36));
                         EditorGUILayout.EndHorizontal();
                     }
                 }
@@ -473,6 +487,7 @@ namespace AssetLockBoard.Editor
             public long since;
             public string mode; // "busy" or "lock"
             public bool IsLock => mode == "lock";
+            [NonSerialized] public int watcherCount;
         }
 
         [Serializable]
@@ -487,7 +502,28 @@ namespace AssetLockBoard.Editor
                 try
                 {
                     var d = JsonUtility.FromJson<FileData>(v);
-                    if (d != null && !string.IsNullOrEmpty(d.name)) r[k] = d;
+                    if (d != null && !string.IsNullOrEmpty(d.name))
+                    {
+                        // Count watchers from raw JSON
+                        var wi = v.IndexOf("\"watchers\"");
+                        if (wi >= 0)
+                        {
+                            var bi = v.IndexOf('{', wi);
+                            if (bi >= 0)
+                            {
+                                int depth = 1, j = bi + 1, count = 0;
+                                bool inKey = false;
+                                while (j < v.Length && depth > 0)
+                                {
+                                    if (v[j] == '{') { depth++; if (depth == 2) count++; }
+                                    else if (v[j] == '}') depth--;
+                                    j++;
+                                }
+                                d.watcherCount = count;
+                            }
+                        }
+                        r[k] = d;
+                    }
                 }
                 catch { }
             }
