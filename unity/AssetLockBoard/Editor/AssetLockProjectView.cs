@@ -9,6 +9,8 @@ namespace AssetLockBoard.Editor
     {
         static Texture2D _lockTex;
         static Texture2D _lockMineTex;
+        static Texture2D _busyTex;
+        static Texture2D _busyMineTex;
         static GUIStyle _nameStyle;
 
         static AssetLockProjectView()
@@ -43,6 +45,22 @@ namespace AssetLockBoard.Editor
             return tex;
         }
 
+        static Texture2D MakeBusyIcon(Color color, int size = 16)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false);
+            tex.hideFlags = HideFlags.HideAndDontSave;
+            var pixels = new Color[size * size];
+            float c = size / 2f, r = size / 2f - 2f;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                    if ((x - c) * (x - c) + (y - c) * (y - c) <= r * r)
+                        pixels[y * size + x] = color;
+            tex.SetPixels(pixels);
+            tex.Apply(false, true);
+            tex.filterMode = FilterMode.Point;
+            return tex;
+        }
+
         static void EnsureTextures()
         {
             if (_lockTex == null)
@@ -53,6 +71,10 @@ namespace AssetLockBoard.Editor
                 _lockMineTex = MakeLockIcon(
                     new Color(0.35f, 0.70f, 0.35f, 0.9f),
                     new Color(0.35f, 0.70f, 0.35f, 0.7f));
+            if (_busyTex == null)
+                _busyTex = MakeBusyIcon(new Color(0.91f, 0.63f, 0.30f, 0.85f));
+            if (_busyMineTex == null)
+                _busyMineTex = MakeBusyIcon(new Color(0.35f, 0.70f, 0.35f, 0.85f));
         }
 
         static void OnItemGUI(string guid, Rect rect)
@@ -71,7 +93,11 @@ namespace AssetLockBoard.Editor
             EnsureTextures();
 
             var isMine = file.ownerId == AssetLockWindow.CurrentUserId;
-            var tex = isMine ? _lockMineTex : _lockTex;
+            var isLock = file.IsLock;
+            Texture2D tex;
+            if (isMine) tex = isLock ? _lockMineTex : _busyMineTex;
+            else tex = isLock ? _lockTex : _busyTex;
+
             var display = isMine ? "you" :
                 !string.IsNullOrEmpty(file.ownerUsername)
                     ? $"@{file.ownerUsername}" : file.ownerName;
@@ -91,7 +117,8 @@ namespace AssetLockBoard.Editor
                     };
                 _nameStyle.normal.textColor = isMine
                     ? new Color(0.35f, 0.70f, 0.35f)
-                    : new Color(0.83f, 0.33f, 0.33f);
+                    : isLock ? new Color(0.83f, 0.33f, 0.33f)
+                    : new Color(0.91f, 0.63f, 0.30f);
 
                 var labelRect = new Rect(rect.xMax - 104, rect.y, 100, rect.height);
                 GUI.Label(labelRect, display, _nameStyle);

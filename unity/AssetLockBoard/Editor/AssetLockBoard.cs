@@ -133,6 +133,8 @@ namespace AssetLockBoard.Editor
         // --- Firebase actions ---
         void Refresh() => Get("files.json", json => { Files = ParseFiles(json); Repaint(); });
 
+        internal static string LockMode = "busy"; // "busy" or "lock"
+
         internal static void LockFileStatic(string filename)
         {
             var w = GetWindow<AssetLockWindow>("Lock Board");
@@ -150,7 +152,8 @@ namespace AssetLockBoard.Editor
             var key = filename.Replace(".", "~");
             var json = $"{{\"name\":\"{Esc(filename)}\",\"ownerId\":{UserId}," +
                        $"\"ownerName\":\"{Esc(UserName)}\",\"ownerUsername\":\"{Esc(UserUsername)}\"," +
-                       $"\"ownerColor\":\"{UserColor}\",\"watchers\":{{}},\"since\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}}}";
+                       $"\"ownerColor\":\"{UserColor}\",\"watchers\":{{}},\"since\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}," +
+                       $"\"mode\":\"{LockMode}\"}}";
             Put($"files/{key}.json", json, _ =>
                 Put($"saved/{key}.json", $"\"{Esc(filename)}\"", __ => Refresh()));
         }
@@ -253,7 +256,7 @@ namespace AssetLockBoard.Editor
                 _lockInput = EditorGUILayout.TextField(_lockInput);
                 var canLock = !string.IsNullOrWhiteSpace(_lockInput) && _lockInput.Contains(".");
                 EditorGUI.BeginDisabledGroup(!canLock);
-                if (GUILayout.Button("Lock", GUILayout.Width(50)))
+                if (GUILayout.Button(LockMode == "lock" ? "\U0001F512 Lock" : "\U0001F536 Busy", GUILayout.Width(60)))
                 {
                     DoLock(_lockInput.Trim());
                     _lockInput = "";
@@ -261,6 +264,20 @@ namespace AssetLockBoard.Editor
                 }
                 EditorGUI.EndDisabledGroup();
                 EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Mode:", GUILayout.Width(40));
+                var style = new GUIStyle(EditorStyles.miniButton);
+                if (LockMode == "busy") GUI.color = new Color(0.91f, 0.63f, 0.30f);
+                if (GUILayout.Button("Busy", style, GUILayout.Width(50))) LockMode = "busy";
+                GUI.color = Color.white;
+                if (LockMode == "lock") GUI.color = new Color(0.83f, 0.13f, 0.13f);
+                if (GUILayout.Button("Lock", style, GUILayout.Width(50))) LockMode = "lock";
+                GUI.color = Color.white;
+                GUILayout.FlexibleSpace();
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.HelpBox(LockMode == "lock"
+                    ? "Lock — blocks saving in Unity for others"
+                    : "Busy — informational, others can still edit", MessageType.None);
                 GUILayout.Space(2);
             }
 
@@ -276,7 +293,7 @@ namespace AssetLockBoard.Editor
                 foreach (var (key, file) in mine)
                 {
                     EditorGUILayout.BeginHorizontal();
-                    GUILayout.Label("\U0001F512", GUILayout.Width(18));
+                    GUILayout.Label(file.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(18));
                     GUILayout.Label(file.name, GUILayout.ExpandWidth(true));
                     GUILayout.Label(Fmt(file.since), EditorStyles.miniLabel, GUILayout.Width(40));
                     if (GUILayout.Button("Free", EditorStyles.miniButton, GUILayout.Width(38)))
@@ -300,7 +317,7 @@ namespace AssetLockBoard.Editor
                     {
                         EditorGUILayout.BeginHorizontal();
                         GUILayout.Space(20);
-                        GUILayout.Label("\U0001F512", GUILayout.Width(18));
+                        GUILayout.Label(file.IsLock ? "\U0001F512" : "\U0001F536", GUILayout.Width(18));
                         GUILayout.Label(file.name);
                         EditorGUILayout.EndHorizontal();
                     }
@@ -332,6 +349,8 @@ namespace AssetLockBoard.Editor
             public string ownerUsername;
             public string ownerColor;
             public long since;
+            public string mode; // "busy" or "lock"
+            public bool IsLock => mode == "lock";
         }
 
         [Serializable]

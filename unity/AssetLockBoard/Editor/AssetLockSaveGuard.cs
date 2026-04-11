@@ -33,13 +33,19 @@ namespace AssetLockBoard.Editor
                         ? $"@{file.ownerUsername}"
                         : file.ownerName;
 
-                    EditorUtility.DisplayDialog(
-                        "Asset Lock Board",
-                        $"\"{filename}\" is locked by {display}.\n\nYou cannot save this file until it is freed.",
-                        "OK");
-                    
-                    Debug.LogWarning($"[ALB] Blocked save: {filename} is locked by {display}");
-                    continue;
+                    if (file.IsLock)
+                    {
+                        EditorUtility.DisplayDialog(
+                            "Asset Lock Board",
+                            $"\"{filename}\" is locked by {display}.\n\nYou cannot save this file until it is freed.",
+                            "OK");
+                        Debug.LogWarning($"[ALB] Blocked save: {filename} is locked by {display}");
+                        continue;
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[ALB] Warning: {filename} is busy ({display}). Saving anyway.");
+                    }
                 }
 
                 allowed.Add(path);
@@ -50,6 +56,7 @@ namespace AssetLockBoard.Editor
 
         /// <summary>
         /// Marks locked files as not editable — Unity will show them as read-only.
+        /// Only applies to 'lock' mode. 'busy' files remain editable.
         /// </summary>
         static bool IsOpenForEdit(string path, out string message)
         {
@@ -61,7 +68,8 @@ namespace AssetLockBoard.Editor
 
             var key = filename.Replace(".", "~");
             if (AssetLockWindow.Files.TryGetValue(key, out var file)
-                && file.ownerId != AssetLockWindow.CurrentUserId)
+                && file.ownerId != AssetLockWindow.CurrentUserId
+                && file.IsLock)
             {
                 var display = !string.IsNullOrEmpty(file.ownerUsername)
                     ? $"@{file.ownerUsername}" : file.ownerName;
@@ -94,12 +102,19 @@ namespace AssetLockBoard.Editor
             var display = !string.IsNullOrEmpty(file.ownerUsername)
                 ? $"@{file.ownerUsername}" : file.ownerName;
 
-            var open = EditorUtility.DisplayDialog(
-                "Asset Lock Board",
-                $"\"{filename}\" is locked by {display}.\n\nAny changes you make will NOT be saved.\nOpen anyway?",
-                "Open (read-only)", "Cancel");
-
-            if (!open) return true; // block opening
+            if (file.IsLock)
+            {
+                var open = EditorUtility.DisplayDialog(
+                    "Asset Lock Board",
+                    $"\"{filename}\" is LOCKED by {display}.\n\nAny changes you make will NOT be saved.\nOpen anyway?",
+                    "Open (read-only)", "Cancel");
+                if (!open) return true;
+            }
+            else
+            {
+                // Busy mode — just log info, don't block
+                Debug.Log($"[ALB] Note: {filename} is busy ({display})");
+            }
 
             return false; // let Unity open normally
         }

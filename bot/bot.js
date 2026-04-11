@@ -402,10 +402,17 @@ onValue(ref(db, 'files'), async (snap) => {
       for (const wId of added) {
         const w = cur.watchers[wId];
         const wTag = w?.username ? '@' + w.username : w?.name || 'Someone';
-        queueNotify(cur.ownerId, `${fileEmoji(cur.name)}<b>${cur.name}</b>  👀 в очереди — ${wTag}`);
+        const modeIcon = cur.mode === 'lock' ? '🔒' : '🔶';
+        queueNotify(cur.ownerId, `${fileEmoji(cur.name)}<b>${cur.name}</b> ${modeIcon} 👀 в очереди — ${wTag}`);
+      }
+      // Mode changed
+      if (prev.mode !== cur.mode && cur.mode) {
+        const modeLabel = cur.mode === 'lock' ? '🔒 lock' : '🔶 busy';
+        for (const wId of Object.keys(cur.watchers || {})) {
+          queueNotify(wId, `${fileEmoji(cur.name)}<b>${cur.name}</b>  режим → ${modeLabel} — ${shortName(cur)}`);
+        }
       }
     }
-    // New lock -> notify watchers of saved file (if any had it saved)
   }
 
   previousFiles = JSON.parse(JSON.stringify(current));
