@@ -90,7 +90,7 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
   };
   const handleSimple = () => {
     const name = simpleName.trim();
-    if (!name) return;
+    if (name.length < 2 || !/^[\p{L}\s\-'.]+$/u.test(name)) return;
     onLogin(loginSimple(name));
   };
   const inTg = isTgWebApp();
@@ -107,7 +107,7 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
       </>:<>
       <div style={{display:'flex',gap:6,width:250}}>
         <input value={simpleName} onChange={e=>setSimpleName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleSimple();}} placeholder="Your name" style={{flex:1,height:36,borderRadius:6,border:'1px solid #505050',background:'#3F3F3F',color:'#EEE',fontSize:14,padding:'0 10px',outline:'none'}}/>
-        <button onClick={handleSimple} disabled={!simpleName.trim()} style={{height:36,borderRadius:6,border:'none',background:simpleName.trim()?'#4A90D9':'#3F3F3F',color:simpleName.trim()?'#fff':'#585858',fontSize:13,fontWeight:600,padding:'0 16px',cursor:simpleName.trim()?'pointer':'default'}}>Enter</button>
+        <button onClick={handleSimple} disabled={simpleName.trim().length<2||!/^[\p{L}\s\-'.]+$/u.test(simpleName.trim())} style={{height:36,borderRadius:6,border:'none',background:simpleName.trim().length>=2?'#4A90D9':'#3F3F3F',color:simpleName.trim().length>=2?'#fff':'#585858',fontSize:13,fontWeight:600,padding:'0 16px',cursor:simpleName.trim().length>=2?'pointer':'default'}}>Enter</button>
       </div>
       {!inTg && <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginTop:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8,width:250}}><div style={{flex:1,borderTop:'1px solid #3F3F3F'}}/><span style={{fontSize:9,color:'#585858',whiteSpace:'nowrap'}}>or connect for notifications</span><div style={{flex:1,borderTop:'1px solid #3F3F3F'}}/></div>
@@ -282,7 +282,10 @@ export default function App() {
             <svg width={8} height={8} viewBox="0 0 16 16" style={{transform:menuOpen?"rotate(180deg)":"",transition:"transform .15s"}}><path d="M3 5h10L8 11z" fill="#7A7A7A"/></svg>
           </div>
           {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0}}/><div style={{position:"absolute",right:0,top:28,background:"#3F3F3F",border:"1px solid #505050",borderRadius:6,padding:4,zIndex:1,minWidth:140,boxShadow:"0 6px 16px rgba(0,0,0,.5)"}}>
-            <div style={{padding:"6px 10px",fontSize:11,color:"#D2D2D2",borderBottom:"1px solid #505050",marginBottom:2}}>{me.name}{me.username&&<div style={{fontSize:10,color:"#7A7A7A",marginTop:1}}>@{me.username}</div>}</div>
+            <div style={{padding:"6px 10px",borderBottom:"1px solid #505050",marginBottom:2}}>
+              <div className="flex items-center gap-1"><input defaultValue={me.name} key={me.name} onBlur={async e=>{const n=e.target.value.trim();if(n.length>=2&&/^[\p{L}\s\-'.]+$/u.test(n)&&n!==me.name){const u={...me,name:n};setMe(u);localStorage.setItem('alb_user',JSON.stringify(u));const ups:Record<string,any>={[`users/${me.id}/name`]:n};Object.entries(files).forEach(([k,f])=>{if(f.ownerId===me.id)ups[`files/${k}/ownerName`]=n;});await update(ref(db),ups);}else{e.target.value=me.name;}}} onKeyDown={e=>{if(e.key==='Enter')(e.target as HTMLInputElement).blur();}} style={{flex:1,background:'transparent',border:'none',borderBottom:'1px solid transparent',color:'#EEE',fontSize:11,outline:'none',padding:'0 0 1px'}}/><span style={{fontSize:9,color:'#585858',cursor:'default'}}>✏️</span></div>
+              {me.username&&<div style={{fontSize:10,color:"#7A7A7A",marginTop:1}}>@{me.username}</div>}
+            </div>
             <div style={{padding:"4px 10px",fontSize:10,color:"#7A7A7A",marginBottom:2}}>Notifications</div>
             {(['both','browser','telegram','off'] as const).map(p=><div key={p} onClick={()=>{setNotifyPref(p);localStorage.setItem('alb_notify',p);update(ref(db),{[`users/${me.id}/notifyPref`]:p});}} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:notifyPref===p?"#7BAEFA":"#D2D2D2",borderRadius:3,background:notifyPref===p?"#46607C":"transparent"}} onMouseEnter={e=>{if(notifyPref!==p)e.currentTarget.style.background="#4A4A4A"}} onMouseLeave={e=>{if(notifyPref!==p)e.currentTarget.style.background="transparent"}}><span style={{width:14,textAlign:'center'}}>{notifyPref===p?'●':'○'}</span>{{both:'Browser + Telegram',browser:'Browser only',telegram:'Telegram only',off:'Off'}[p]}</div>)}
             <div style={{borderTop:"1px solid #505050",marginTop:4,paddingTop:4}}/>
