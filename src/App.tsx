@@ -168,7 +168,7 @@ export default function App() {
 
   useEffect(() => {
     if (!me) return;
-    const unsub = onValue(ref(db, `admins/${me.id}`), snap => setIsAdmin(!!snap.val()));
+    const unsub = onValue(ref(db, `users/${me.id}/isAdmin`), snap => setIsAdmin(!!snap.val()));
     return () => unsub();
   }, [me?.id]);
 

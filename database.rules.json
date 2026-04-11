@@ -2,31 +2,19 @@
   "rules": {
     "files": {
       ".read": true,
-      "$key": {
-        ".write": true
-      }
+      "$key": { ".write": true }
     },
     "saved": {
       ".read": true,
-      "$key": {
-        ".write": true
-      }
+      "$key": { ".write": true }
     },
     "users": {
       ".read": true,
-      "$uid": {
-        ".write": true
-      }
+      "$uid": { ".write": true }
     },
     "boards": {
       ".read": true,
-      "$chatId": {
-        ".write": true
-      }
-    },
-    "admins": {
-      ".read": true,
-      ".write": false
+      "$chatId": { ".write": true }
     },
     "$other": {
       ".read": false,
