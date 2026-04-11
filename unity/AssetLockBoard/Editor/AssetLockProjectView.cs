@@ -115,18 +115,18 @@ namespace AssetLockBoard.Editor
                 }
                 else
                 {
-                    // Flat list (right panel): icon + name on the right
+                    // Flat list: icon + name right after filename
                     if (_nameStyle == null)
-                        _nameStyle = new GUIStyle(EditorStyles.miniLabel) { alignment = TextAnchor.MiddleLeft, fontSize = 9 };
+                        _nameStyle = new GUIStyle(EditorStyles.label) { fontSize = 11 };
                     _nameStyle.normal.textColor = isMine
                         ? new Color(0.35f, 0.70f, 0.35f)
                         : isLock ? new Color(0.83f, 0.33f, 0.33f)
                         : new Color(0.91f, 0.63f, 0.30f);
-                    var nameW = Mathf.Min(_nameStyle.CalcSize(new GUIContent(display)).x, 70f);
-                    var totalW = 10 + 2 + nameW + 4;
-                    var iconRect = new Rect(rect.xMax - totalW, rect.y + (rect.height - 10) / 2f, 10, 10);
+                    var fileNameW = EditorStyles.label.CalcSize(new GUIContent(filename)).x;
+                    var startX = rect.x + 18 + fileNameW + 6;
+                    var iconRect = new Rect(startX, rect.y + (rect.height - 12) / 2f, 12, 12);
                     GUI.DrawTexture(iconRect, tex, ScaleMode.ScaleToFit);
-                    GUI.Label(new Rect(iconRect.xMax + 2, rect.y, nameW, rect.height), display, _nameStyle);
+                    GUI.Label(new Rect(iconRect.xMax + 3, rect.y, 80, rect.height), display, _nameStyle);
                 }
             }
             else
