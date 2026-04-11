@@ -11,7 +11,6 @@ namespace AssetLockBoard.Editor
         static Texture2D _lockMineTex;
         static Texture2D _busyTex;
         static Texture2D _busyMineTex;
-        static GUIStyle _nameStyle;
 
         static AssetLockProjectView()
         {
@@ -106,32 +105,15 @@ namespace AssetLockBoard.Editor
 
             if (isList)
             {
-                // Small icon at far right, never overlapping the name
-                var iconSize = 10;
-                var nameW = isMine ? 20f : Mathf.Min(EditorStyles.miniLabel.CalcSize(new GUIContent(display)).x, 70f);
-                var totalW = iconSize + 2 + nameW + 4;
-                var startX = rect.xMax - totalW;
-
-                var iconRect = new Rect(startX, rect.y + (rect.height - iconSize) / 2f, iconSize, iconSize);
+                // Small badge on the left, over the asset icon corner
+                var iconSize = 8;
+                var iconRect = new Rect(rect.x, rect.y + rect.height - iconSize - 1, iconSize, iconSize);
                 GUI.DrawTexture(iconRect, tex, ScaleMode.ScaleToFit);
-
-                if (_nameStyle == null)
-                    _nameStyle = new GUIStyle(EditorStyles.miniLabel)
-                    {
-                        alignment = TextAnchor.MiddleLeft,
-                        fontSize = 9
-                    };
-                _nameStyle.normal.textColor = isMine
-                    ? new Color(0.35f, 0.70f, 0.35f)
-                    : isLock ? new Color(0.83f, 0.33f, 0.33f)
-                    : new Color(0.91f, 0.63f, 0.30f);
-
-                var labelRect = new Rect(startX + iconSize + 2, rect.y, nameW, rect.height);
-                GUI.Label(labelRect, display, _nameStyle);
             }
             else
             {
-                var iconRect = new Rect(rect.x, rect.yMax - 28, 14, 14);
+                // Grid view: badge in bottom-left of icon
+                var iconRect = new Rect(rect.x, rect.yMax - 28, 10, 10);
                 GUI.DrawTexture(iconRect, tex, ScaleMode.ScaleToFit);
             }
         }
