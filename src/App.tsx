@@ -138,6 +138,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
+  const [editing, setEditing] = useState(false);
   const [pipWin, setPipWin] = useState<Window | null>(null);
   const [notifyPref, setNotifyPref] = useState<'both'|'browser'|'telegram'|'off'>(() => (localStorage.getItem('alb_notify') as any) || 'both');
   const tRef = useRef<ReturnType<typeof setTimeout>>();
@@ -280,19 +281,30 @@ export default function App() {
         <span style={{fontSize:9,color:"#7A7A7A",background:"#3F3F3F",padding:"1px 5px",borderRadius:3,lineHeight:"16px",WebkitAppRegion:'no-drag' as any}}>{entries.length}</span>
         {'documentPictureInPicture' in window && <svg onClick={togglePip} width={18} height={18} viewBox="0 0 16 16" className="shrink-0 cursor-pointer" style={{WebkitAppRegion:'no-drag' as any}} title="Pin on top"><rect x="1" y="5" width="10" height="10" rx="1.5" fill="none" stroke={pipWin?"#7BAEFA":"#C0C0C0"} strokeWidth="1.3"/><path d={`M7 9L14 2M14 2H10M14 2v4`} fill="none" stroke={pipWin?"#7BAEFA":"#C0C0C0"} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
         <div className="relative" style={{WebkitAppRegion:'no-drag' as any,zIndex:50}}>
-          <div onClick={()=>{if(!menuOpen){setEditName(me.name);setEditColor(me.color);}setMenuOpen(!menuOpen);}} className="flex items-center gap-1.5 cursor-pointer" style={{padding:"2px 6px",borderRadius:4,height:24,background:menuOpen?"#3F3F3F":"transparent"}}>
+          <div onClick={()=>{if(!menuOpen){setEditName(me.name);setEditColor(me.color);setEditing(false);}setMenuOpen(!menuOpen);}} className="flex items-center gap-1.5 cursor-pointer" style={{padding:"2px 6px",borderRadius:4,height:24,background:menuOpen?"#3F3F3F":"transparent"}}>
             <Av user={me} size={20}/><span style={{fontSize:11,color:"#D2D2D2",maxWidth:90}} className="truncate">{dn(me.name,me.username)}</span>
             <svg width={8} height={8} viewBox="0 0 16 16" style={{transform:menuOpen?"rotate(180deg)":"",transition:"transform .15s"}}><path d="M3 5h10L8 11z" fill="#7A7A7A"/></svg>
           </div>
           {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0}}/><div style={{position:"absolute",right:0,top:28,background:"#3F3F3F",border:"1px solid #505050",borderRadius:6,padding:4,zIndex:1,minWidth:140,boxShadow:"0 6px 16px rgba(0,0,0,.5)"}}>
             <div style={{padding:"6px 10px",borderBottom:"1px solid #505050",marginBottom:2}}>
-              <div className="flex items-center gap-2" style={{marginBottom:4}}>
-                <div onClick={()=>{const c=COLORS;const i=(c.indexOf(editColor)+1)%c.length;setEditColor(c[i]);}} className="cursor-pointer shrink-0"><Av user={{name:editName||me.name,color:editColor,photo:me.photo}} size={28}/></div>
-                <input value={editName} onChange={e=>setEditName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')(e.target as HTMLInputElement).blur();}} style={{flex:1,background:'#353535',border:'1px solid #505050',borderRadius:3,color:'#EEE',fontSize:11,outline:'none',padding:'3px 6px'}}/>
-              </div>
-              {!me.photo&&<div className="flex gap-1 flex-wrap" style={{marginBottom:4}}>{COLORS.map(c=><div key={c} onClick={()=>setEditColor(c)} className="cursor-pointer" style={{width:14,height:14,borderRadius:7,background:c,border:editColor===c?'2px solid #EEE':'2px solid transparent'}}/>)}</div>}
-              {(editName.trim()!==me.name||editColor!==me.color)&&editName.trim().length>=2&&/^[\p{L}\s\-'.]+$/u.test(editName.trim())&&<button onClick={async()=>{const n=editName.trim();const u={...me,name:n,color:editColor};setMe(u);localStorage.setItem('alb_user',JSON.stringify(u));const ups:Record<string,any>={[`users/${me.id}/name`]:n,[`users/${me.id}/color`]:editColor};Object.entries(files).forEach(([k,f])=>{if(f.ownerId===me.id){ups[`files/${k}/ownerName`]=n;ups[`files/${k}/ownerColor`]=editColor;}});await update(ref(db),ups);}} style={{width:'100%',height:20,borderRadius:3,border:'none',background:'#4A90D9',color:'#fff',fontSize:10,fontWeight:600,cursor:'pointer',marginBottom:2}}>Save</button>}
-              {me.username&&<div style={{fontSize:10,color:"#7A7A7A"}}>@{me.username}</div>}
+              {!editing?<>
+                <div className="flex items-center gap-2">
+                  <Av user={me} size={28}/>
+                  <div className="flex-1 truncate" style={{fontSize:11,color:'#D2D2D2'}}>{me.name}</div>
+                  <span onClick={()=>setEditing(true)} className="cursor-pointer" style={{fontSize:10,color:'#585858'}}>✏️</span>
+                </div>
+                {me.username&&<div style={{fontSize:10,color:"#7A7A7A",marginTop:2,marginLeft:36}}>@{me.username}</div>}
+              </>:<>
+                <div className="flex items-center gap-2" style={{marginBottom:4}}>
+                  <Av user={{name:editName||me.name,color:editColor,photo:me.photo}} size={28}/>
+                  <input value={editName} onChange={e=>setEditName(e.target.value)} autoFocus style={{flex:1,background:'#353535',border:'1px solid #505050',borderRadius:3,color:'#EEE',fontSize:11,outline:'none',padding:'3px 6px'}}/>
+                </div>
+                {!me.photo&&<div className="flex gap-1 flex-wrap" style={{marginBottom:4}}>{COLORS.map(c=><div key={c} onClick={()=>setEditColor(c)} className="cursor-pointer" style={{width:16,height:16,borderRadius:8,background:c,border:editColor===c?'2px solid #EEE':'2px solid transparent'}}/>)}</div>}
+                <div className="flex gap-2">
+                  <button onClick={async()=>{const n=editName.trim();if(n.length<2||!/^[\p{L}\s\-'.]+$/u.test(n))return;const u={...me,name:n,color:editColor};setMe(u);localStorage.setItem('alb_user',JSON.stringify(u));const ups:Record<string,any>={[`users/${me.id}/name`]:n,[`users/${me.id}/color`]:editColor};Object.entries(files).forEach(([k,f])=>{if(f.ownerId===me.id){ups[`files/${k}/ownerName`]=n;ups[`files/${k}/ownerColor`]=editColor;}});await update(ref(db),ups);setEditing(false);}} style={{flex:1,height:22,borderRadius:3,border:'none',background:'#4A90D9',color:'#fff',fontSize:10,fontWeight:600,cursor:'pointer'}}>Save</button>
+                  <button onClick={()=>{setEditName(me.name);setEditColor(me.color);setEditing(false);}} style={{height:22,borderRadius:3,border:'1px solid #505050',background:'transparent',color:'#AAA',fontSize:10,cursor:'pointer',padding:'0 8px'}}>Cancel</button>
+                </div>
+              </>}
             </div>
             <div style={{padding:"4px 10px",fontSize:10,color:"#7A7A7A",marginBottom:2}}>Notifications</div>
             {(['both','browser','telegram','off'] as const).map(p=><div key={p} onClick={()=>{setNotifyPref(p);localStorage.setItem('alb_notify',p);update(ref(db),{[`users/${me.id}/notifyPref`]:p});}} className="cursor-pointer flex items-center gap-2" style={{padding:"4px 10px",fontSize:11,color:notifyPref===p?"#7BAEFA":"#D2D2D2",borderRadius:3,background:notifyPref===p?"#46607C":"transparent"}} onMouseEnter={e=>{if(notifyPref!==p)e.currentTarget.style.background="#4A4A4A"}} onMouseLeave={e=>{if(notifyPref!==p)e.currentTarget.style.background="transparent"}}><span style={{width:14,textAlign:'center'}}>{notifyPref===p?'●':'○'}</span>{{both:'Browser + Telegram',browser:'Browser only',telegram:'Telegram only',off:'Off'}[p]}</div>)}
