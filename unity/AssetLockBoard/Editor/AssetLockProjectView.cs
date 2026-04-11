@@ -142,41 +142,59 @@ namespace AssetLockBoard.Editor
         [MenuItem("Assets/Lock File %&l", false, 1000)]
         static void Lock()
         {
-            var path = AssetDatabase.GetAssetPath(Selection.activeObject);
-            var filename = Path.GetFileName(path);
-            if (!string.IsNullOrEmpty(filename))
-                AssetLockWindow.LockFileStatic(filename);
+            foreach (var obj in Selection.objects)
+            {
+                var path = AssetDatabase.GetAssetPath(obj);
+                var filename = Path.GetFileName(path);
+                if (string.IsNullOrEmpty(filename)) continue;
+                var key = filename.Replace(".", "~");
+                if (!AssetLockWindow.Files.ContainsKey(key))
+                    AssetLockWindow.LockFileStatic(filename);
+            }
         }
 
         [MenuItem("Assets/Lock File %&l", true)]
         static bool CanLock()
         {
-            if (!AssetLockWindow.Ready || Selection.activeObject == null) return false;
-            var path = AssetDatabase.GetAssetPath(Selection.activeObject);
-            var filename = Path.GetFileName(path);
-            if (string.IsNullOrEmpty(filename)) return false;
-            var key = filename.Replace(".", "~");
-            return !AssetLockWindow.Files.ContainsKey(key);
+            if (!AssetLockWindow.Ready || Selection.objects.Length == 0) return false;
+            foreach (var obj in Selection.objects)
+            {
+                var path = AssetDatabase.GetAssetPath(obj);
+                var filename = Path.GetFileName(path);
+                if (string.IsNullOrEmpty(filename)) continue;
+                var key = filename.Replace(".", "~");
+                if (!AssetLockWindow.Files.ContainsKey(key)) return true;
+            }
+            return false;
         }
 
         [MenuItem("Assets/Free File %&u", false, 1001)]
         static void Free()
         {
-            var path = AssetDatabase.GetAssetPath(Selection.activeObject);
-            var filename = Path.GetFileName(path);
-            if (!string.IsNullOrEmpty(filename))
-                AssetLockWindow.FreeFileStatic(filename);
+            foreach (var obj in Selection.objects)
+            {
+                var path = AssetDatabase.GetAssetPath(obj);
+                var filename = Path.GetFileName(path);
+                if (string.IsNullOrEmpty(filename)) continue;
+                var key = filename.Replace(".", "~");
+                if (AssetLockWindow.Files.TryGetValue(key, out var f) && f.ownerId == AssetLockWindow.CurrentUserId)
+                    AssetLockWindow.FreeFileStatic(filename);
+            }
         }
 
         [MenuItem("Assets/Free File %&u", true)]
         static bool CanFree()
         {
-            if (!AssetLockWindow.Ready || Selection.activeObject == null) return false;
-            var path = AssetDatabase.GetAssetPath(Selection.activeObject);
-            var filename = Path.GetFileName(path);
-            if (string.IsNullOrEmpty(filename)) return false;
-            var key = filename.Replace(".", "~");
-            return AssetLockWindow.Files.TryGetValue(key, out var f) && f.ownerId == AssetLockWindow.CurrentUserId;
+            if (!AssetLockWindow.Ready || Selection.objects.Length == 0) return false;
+            foreach (var obj in Selection.objects)
+            {
+                var path = AssetDatabase.GetAssetPath(obj);
+                var filename = Path.GetFileName(path);
+                if (string.IsNullOrEmpty(filename)) continue;
+                var key = filename.Replace(".", "~");
+                if (AssetLockWindow.Files.TryGetValue(key, out var f) && f.ownerId == AssetLockWindow.CurrentUserId) return true;
+            }
+            return false;
         }
     }
 }
