@@ -35,6 +35,17 @@ BOT_TOKEN=... WEBAPP_URL=... FIREBASE_DB_URL=... node bot.js
 │   └── icons.ts         # Unity Editor иконки (base64)
 ├── bot/
 │   └── bot.js           # Telegram бот + уведомления
+├── unity/AssetLockBoard # Unity Editor пакет (UPM)
 ├── firebase-rules.json  # Realtime Database rules
 └── SETUP.md             # Пошаговая инструкция
 ```
+
+## Unity Editor пакет
+
+Установка через **Window → Package Manager → + → Add package from git URL:**
+
+```
+https://github.com/SashaRX/asset-lock-board.git?path=unity/AssetLockBoard
+```
+
+Показывает статус файлов прямо в Project окне, блокирует сохранение чужих файлов (режим Lock), контекстное меню Lock/Free. Подробнее в [unity/AssetLockBoard/README.md](unity/AssetLockBoard/README.md).
