@@ -440,7 +440,8 @@ export default function App() {
             <span style={{fontSize:9,fontWeight:600,color:T.textDim,textTransform:"uppercase",letterSpacing:".04em"}}>Your files ({mine.length}){ghosts.length>0&&<span style={{color:T.accentOrange}}> +{ghosts.length}</span>}</span>
             {mine.length>1&&<button onClick={freeAll} style={{height:14,padding:"0 5px",borderRadius:3,border:`1px solid ${T.bgMid}`,background:T.textMuted,color:T.textBright,fontSize:9,cursor:"pointer",lineHeight:"12px"}}>Free All</button>}
           </div>
-          {mine.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"18px 1fr 20px 32px 42px",height:18,padding:"0 6px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
+          {mine.map(([k,f],i)=><div key={k} className={`${rowStyle} ${hoverClass}`} style={{gridTemplateColumns:"14px 18px 1fr 20px 32px 42px",height:18,padding:"0 6px",columnGap:3,background:i%2?T.bgRow:"transparent"}}>
+            <div className="flex justify-center cursor-pointer" onClick={()=>update(ref(db),{[`files/${k}/mode`]:f.mode==='lock'?'busy':'lock'})} title={f.mode==='lock'?'Lock → Busy':'Busy → Lock'}><LkIco size={11} mode={f.mode||'busy'}/></div>
             <FIcon ext={getExt(f.name)} size={16}/><span className="truncate" style={{fontSize:11,color:T.textBright}}>{f.name}</span>
             <div className="flex justify-center">{Object.keys(f.watchers||{}).length>0&&<BellIco active size={13}/>}</div>
             <span style={{fontSize:9,color:T.textDim,textAlign:"right"}}>{fmt(f.since)}</span>
