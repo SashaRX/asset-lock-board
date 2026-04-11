@@ -282,9 +282,15 @@ namespace AssetLockBoard.Editor
                 }
                 else if (selData.ownerId == UserId)
                 {
-                    // Mine — show free button
-                    var modeLabel = selData.IsLock ? "\U0001F512 Locked" : "\U0001F536 Busy";
-                    GUILayout.Label(modeLabel, EditorStyles.miniLabel);
+                    // Mine — toggle mode + free
+                    GUI.color = selData.IsLock ? new Color(0.83f, 0.13f, 0.13f) : new Color(0.91f, 0.63f, 0.30f);
+                    var modeBtn = selData.IsLock ? "\U0001F512 Lock" : "\U0001F536 Busy";
+                    if (GUILayout.Button(modeBtn, GUILayout.Width(65)))
+                    {
+                        var newMode = selData.IsLock ? "busy" : "lock";
+                        Put($"files/{selKey}/mode.json", $"\"{newMode}\"", _ => Refresh());
+                    }
+                    GUI.color = Color.white;
                     if (GUILayout.Button("Free", GUILayout.Width(50)))
                         DoFree(selFile);
                 }
