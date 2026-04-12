@@ -1,7 +1,3 @@
 # Dev/CI files — not needed in package
 .github/
 *.bat
-
-# Documentation meta (keep docs, skip meta for non-Unity files)
-CHANGELOG.md.meta
-README.md.meta
