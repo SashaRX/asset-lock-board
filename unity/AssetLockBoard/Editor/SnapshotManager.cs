@@ -17,6 +17,7 @@ namespace AssetLockBoard.Editor
 
         internal List<SnapshotData> Snapshots = new();
         readonly Dictionary<string, Texture2D> _thumbCache = new();
+        readonly HashSet<string> _imageLoading = new();
 
         internal SnapshotManager(
             Action<string, Action<string>> get,
@@ -208,35 +209,61 @@ namespace AssetLockBoard.Editor
 
         internal void SaveToFirebase(SnapshotData snap)
         {
+            var image = snap.image; // save before ToJson (NonSerialized)
             var json = JsonUtility.ToJson(snap);
-            _put($"snapshots/{snap.id}.json", json, _ => RefreshFromFirebase());
+            _put($"snapshots/{snap.id}.json", json, _ =>
+            {
+                if (!string.IsNullOrEmpty(image))
+                    _put($"snapshot_images/{snap.id}.json", $"\"{AssetLockWindow.Esc(image)}\"", __ => RefreshFromFirebase());
+                else
+                    RefreshFromFirebase();
+            });
         }
 
         internal void DeleteFromFirebase(string id)
         {
-            _delete($"snapshots/{id}.json", _ => RefreshFromFirebase());
+            _delete($"snapshots/{id}.json", _ =>
+                _delete($"snapshot_images/{id}.json", __ => RefreshFromFirebase()));
         }
 
         // --- Thumbnail ---
 
         internal Texture2D GetThumbnail(SnapshotData snap)
         {
-            if (snap == null || string.IsNullOrEmpty(snap.image)) return null;
+            if (snap == null) return null;
             if (_thumbCache.TryGetValue(snap.id, out var cached)) return cached;
 
-            try
+            // Already have image data in memory — decode it
+            if (!string.IsNullOrEmpty(snap.image))
             {
-                var bytes = Convert.FromBase64String(snap.image);
-                var tex = new Texture2D(2, 2);
-                tex.LoadImage(bytes);
-                tex.hideFlags = HideFlags.HideAndDontSave;
-                _thumbCache[snap.id] = tex;
-                return tex;
+                try
+                {
+                    var bytes = Convert.FromBase64String(snap.image);
+                    var tex = new Texture2D(2, 2);
+                    tex.LoadImage(bytes);
+                    tex.hideFlags = HideFlags.HideAndDontSave;
+                    _thumbCache[snap.id] = tex;
+                    return tex;
+                }
+                catch { return null; }
             }
-            catch
+
+            // Lazy fetch from snapshot_images/{id}
+            if (!_imageLoading.Contains(snap.id))
             {
-                return null;
+                _imageLoading.Add(snap.id);
+                var snapRef = snap;
+                _get($"snapshot_images/{snap.id}.json", json =>
+                {
+                    _imageLoading.Remove(snapRef.id);
+                    if (string.IsNullOrEmpty(json) || json.Trim() == "null") return;
+                    // Firebase returns quoted string: "base64..."
+                    var b64 = json.Trim().Trim('"');
+                    if (string.IsNullOrEmpty(b64)) return;
+                    snapRef.image = b64;
+                });
             }
+            return null;
         }
 
         // --- Clipboard flow ---

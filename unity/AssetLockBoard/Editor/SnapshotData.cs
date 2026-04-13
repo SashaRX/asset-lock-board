@@ -21,7 +21,7 @@ namespace AssetLockBoard.Editor
         public string scene;        // "Assets/Scenes/Level_01.unity"
         public CameraData camera;
         public string[] selection;  // hierarchy paths
-        public string image;        // base64 PNG
+        [NonSerialized] public string image;  // base64 PNG (stored separately, not in metadata)
         public long timestamp;
     }
 

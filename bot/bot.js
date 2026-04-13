@@ -232,8 +232,9 @@ bot.command('snap', async (ctx) => {
                   `ID: <code>${id}</code>\n` +
                   `Objects: ${(snap.selection || []).join(', ') || 'none'}`;
 
-  if (snap.image) {
-    const imgBuffer = Buffer.from(snap.image, 'base64');
+  const image = await db.get(`snapshot_images/${id}`);
+  if (image) {
+    const imgBuffer = Buffer.from(image, 'base64');
     await ctx.replyWithPhoto({ source: imgBuffer }, { caption, parse_mode: 'HTML' });
   } else {
     await ctx.reply(caption, { parse_mode: 'HTML' });
@@ -444,15 +445,17 @@ db.listen('snapshots', async (current) => {
   current = current || {};
 
   for (const [id, snap] of Object.entries(current)) {
-    if (!previousSnapshots[id] && snap.image && snap.authorName) {
+    if (!previousSnapshots[id] && snap.authorName) {
       try {
-        const imgBuffer = Buffer.from(snap.image, 'base64');
+        const image = await db.get(`snapshot_images/${id}`);
         const sceneName = (snap.scene || '').split('/').pop()?.replace('.unity', '') || 'Unknown';
         const caption = `<b>${snap.name || 'Snapshot'}</b>\n` +
                         `by ${snap.authorName} \u2022 ${sceneName}\n` +
                         `ID: <code>${id}</code>`;
 
+        const imgBuffer = image ? Buffer.from(image, 'base64') : null;
         for (const chatId of Object.keys(boards)) {
+          if (!imgBuffer) { continue; }
           await bot.telegram.sendPhoto(chatId, { source: imgBuffer }, {
             caption,
             parse_mode: 'HTML',
