@@ -54,7 +54,7 @@ const COLORS = [
 ];
 
 function colorForId(id: number): string {
-  return COLORS[id % COLORS.length];
+  return COLORS[Math.abs(id) % COLORS.length];
 }
 
 export function initTelegram() {
@@ -67,7 +67,9 @@ export function initTelegram() {
   }
 }
 
+/* Restore session from localStorage or Telegram WebApp */
 export function getUser(): AppUser | null {
+  // Telegram Mini App — auto-login
   const tg = window.Telegram?.WebApp;
   const u = tg?.initDataUnsafe?.user;
   if (u) {
@@ -76,8 +78,10 @@ export function getUser(): AppUser | null {
       name: u.first_name + (u.last_name ? ' ' + u.last_name[0] + '.' : ''),
       username: u.username,
       color: colorForId(u.id),
+      provider: 'telegram',
     };
   }
+  // Saved session
   try {
     const saved = localStorage.getItem('alb_user');
     if (saved) return JSON.parse(saved);
@@ -85,12 +89,53 @@ export function getUser(): AppUser | null {
   return null;
 }
 
-export function loginWithTelegram(tgUser: TelegramLoginUser): AppUser {
+/* --- Simple login: find existing user by name or create new --- */
+export async function loginSimple(name: string): Promise<{ user?: AppUser; error?: string }> {
+  const trimmed = name.trim();
+  if (trimmed.length < 2) return { error: 'Name too short' };
+  if (!/^[\p{L}\s\-'.]+$/u.test(trimmed)) return { error: 'Invalid characters' };
+
+  // Search existing users by name (case-insensitive)
+  const snap = await get(ref(db, 'users'));
+  const users = snap.val() || {};
+  const lower = trimmed.toLowerCase();
+
+  for (const [uid, profile] of Object.entries(users) as [string, any][]) {
+    if (profile.name?.toLowerCase() === lower) {
+      // Found existing user — restore session
+      const user: AppUser = {
+        id: Number(uid),
+        name: profile.name,
+        username: profile.username || '',
+        color: profile.color || colorForId(Number(uid)),
+        photo: profile.photo,
+        provider: profile.provider || 'simple',
+      };
+      localStorage.setItem('alb_user', JSON.stringify(user));
+      return { user };
+    }
+  }
+
+  // New user — create with stable ID
+  const id = Date.now() + Math.floor(Math.random() * 1000);
+  const user: AppUser = { id, name: trimmed, color: colorForId(id), provider: 'simple' };
+  localStorage.setItem('alb_user', JSON.stringify(user));
+  return { user };
+}
+
+/* --- Telegram Widget login (browser, not Mini App) --- */
+export async function loginWithTelegram(tgUser: TelegramLoginUser): Promise<AppUser> {
+  const tgId = tgUser.id;
+  // Check if Telegram account already linked to a user
+  const snap = await get(ref(db, `users/${tgId}`));
+  const existing = snap.val();
+
   const user: AppUser = {
-    id: tgUser.id,
-    name: tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name[0] + '.' : ''),
+    id: tgId,
+    name: existing?.name || tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name[0] + '.' : ''),
     username: tgUser.username,
-    color: colorForId(tgUser.id),
+    color: existing?.color || colorForId(tgId),
+    photo: existing?.photo,
     provider: 'telegram',
   };
   localStorage.setItem('alb_user', JSON.stringify(user));
@@ -102,14 +147,7 @@ export function logout() {
   auth.signOut().catch(() => {});
 }
 
-export function loginSimple(name: string): AppUser {
-  const id = Date.now() + Math.floor(Math.random() * 1000);
-  const user: AppUser = { id, name: name.trim(), color: colorForId(id), provider: 'simple' };
-  localStorage.setItem('alb_user', JSON.stringify(user));
-  return user;
-}
-
-/* Migrate all Firebase records from oldId to newId */
+/* --- Migrate all Firebase records from oldId to newId --- */
 async function migrateUserId(oldId: number, newId: number, merged: Record<string, unknown>): Promise<void> {
   const snap = await get(ref(db, 'files'));
   const files = snap.val() || {};
@@ -128,61 +166,64 @@ async function migrateUserId(oldId: number, newId: number, merged: Record<string
   }
   const oldSnap = await get(ref(db, `users/${oldId}`));
   const oldProfile = oldSnap.val() || {};
-  ups[`users/${newId}`] = { ...oldProfile, ...merged };
+  // Preserve isAdmin from either profile
+  const newSnap = await get(ref(db, `users/${newId}`));
+  const newProfile = newSnap.val() || {};
+  const isAdmin = oldProfile.isAdmin || newProfile.isAdmin || null;
+  ups[`users/${newId}`] = { ...oldProfile, ...newProfile, ...merged, ...(isAdmin ? { isAdmin } : {}) };
   ups[`users/${oldId}`] = null;
   await update(ref(db), ups);
 }
 
+/* --- Link Telegram to existing account --- */
 export async function linkTelegram(current: AppUser, tgUser: TelegramLoginUser): Promise<AppUser> {
   const newId = tgUser.id;
   if (newId === current.id) return current;
-  const name = tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name[0] + '.' : '');
-  const merged = { name, username: tgUser.username || '', color: colorForId(newId) };
+  const name = current.name; // keep current name
+  const merged = { name, username: tgUser.username || '', color: current.color, provider: 'telegram' };
   await migrateUserId(current.id, newId, merged);
-  const user: AppUser = { id: newId, name, username: tgUser.username, color: merged.color };
+  const user: AppUser = { id: newId, name, username: tgUser.username, color: current.color, provider: 'telegram' };
   localStorage.setItem('alb_user', JSON.stringify(user));
   return user;
 }
 
+/* --- Link Google to existing account --- */
 export async function linkGoogle(current: AppUser): Promise<AppUser | null> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const u = result.user;
     const numId = Math.abs([...u.uid].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0));
-    // If already same id, just update profile
     if (numId === current.id) return current;
-    const merged = { name: u.displayName || current.name, color: colorForId(numId), photo: u.photoURL || undefined };
+    const merged = { name: current.name, color: current.color, photo: u.photoURL || undefined, provider: 'google' as const };
     await migrateUserId(current.id, numId, merged);
-    const user: AppUser = { id: numId, name: merged.name, color: merged.color, photo: merged.photo };
+    const user: AppUser = { id: numId, name: current.name, color: current.color, photo: merged.photo, provider: 'google' };
     localStorage.setItem('alb_user', JSON.stringify(user));
     return user;
   } catch { return null; }
 }
 
-function googleUserToAppUser(u: {uid:string; displayName:string|null; photoURL:string|null}): AppUser {
-  const numId = Math.abs([...u.uid].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0));
-  const user: AppUser = {
-    id: numId,
-    name: u.displayName || 'User',
-    color: colorForId(numId),
-    photo: u.photoURL || undefined,
-    provider: 'google',
-  };
-  localStorage.setItem('alb_user', JSON.stringify(user));
-  return user;
-}
-
-/* True only in genuine Telegram Mini App (initData is non-empty).
-   Telegram Desktop in-app browser: initData="", Google popup works (with COOP warning).
-   Regular browser: telegram-web-app.js from <head> creates WebApp but initData="" too. */
+/* True only in genuine Telegram Mini App (initData is non-empty). */
 const isTgWebApp = () => !!window.Telegram?.WebApp?.initData;
-
 export { isTgWebApp };
 
+/* Google standalone login — kept for redirect flow but links to existing or creates */
 export async function loginWithGoogle(): Promise<AppUser | null> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
-    return googleUserToAppUser(result.user);
+    const u = result.user;
+    const numId = Math.abs([...u.uid].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0));
+    // Check if this Google ID already exists
+    const snap = await get(ref(db, `users/${numId}`));
+    const existing = snap.val();
+    const user: AppUser = {
+      id: numId,
+      name: existing?.name || u.displayName || 'User',
+      color: existing?.color || colorForId(numId),
+      photo: u.photoURL || existing?.photo,
+      provider: 'google',
+    };
+    localStorage.setItem('alb_user', JSON.stringify(user));
+    return user;
   } catch {
     await signInWithRedirect(auth, googleProvider);
     return null;
@@ -192,7 +233,20 @@ export async function loginWithGoogle(): Promise<AppUser | null> {
 export async function checkGoogleRedirect(): Promise<AppUser | null> {
   try {
     const result = await getRedirectResult(auth);
-    if (result?.user) return googleUserToAppUser(result.user);
+    if (!result?.user) return null;
+    const u = result.user;
+    const numId = Math.abs([...u.uid].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0));
+    const snap = await get(ref(db, `users/${numId}`));
+    const existing = snap.val();
+    const user: AppUser = {
+      id: numId,
+      name: existing?.name || u.displayName || 'User',
+      color: existing?.color || colorForId(numId),
+      photo: u.photoURL || existing?.photo,
+      provider: 'google',
+    };
+    localStorage.setItem('alb_user', JSON.stringify(user));
+    return user;
   } catch {}
   return null;
 }

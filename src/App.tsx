@@ -76,11 +76,13 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
   const wRef = useRef<HTMLDivElement>(null);
   const [gLoading, setGLoading] = useState(false);
   const [simpleName, setSimpleName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loginErr, setLoginErr] = useState('');
   const [passOk, setPassOk] = useState(() => localStorage.getItem('alb_pass') === TEAM_PASS);
   const [passInput, setPassInput] = useState('');
   const [passErr, setPassErr] = useState(false);
   useEffect(() => {
-    (window as any).onTelegramAuth = (tgUser: TelegramLoginUser) => onLogin(loginWithTelegram(tgUser));
+    (window as any).onTelegramAuth = async (tgUser: TelegramLoginUser) => { const u = await loginWithTelegram(tgUser); onLogin(u); };
     if (wRef.current && !wRef.current.querySelector('script')) {
       const s = document.createElement('script');
       s.src = 'https://telegram.org/js/telegram-widget.js?22';
@@ -100,10 +102,14 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
     if (passInput === TEAM_PASS) { localStorage.setItem('alb_pass', TEAM_PASS); setPassOk(true); setPassErr(false); }
     else setPassErr(true);
   };
-  const handleSimple = () => {
+  const handleSimple = async () => {
     const name = simpleName.trim();
     if (name.length < 2 || !/^[\p{L}\s\-'.]+$/u.test(name)) return;
-    onLogin(loginSimple(name));
+    setLoading(true); setLoginErr('');
+    const { user, error } = await loginSimple(name);
+    if (error) { setLoginErr(error); setLoading(false); return; }
+    if (user) onLogin(user);
+    setLoading(false);
   };
   const inTg = isTgWebApp();
   return (
@@ -118,9 +124,10 @@ function LoginScreen({onLogin}:{onLogin:(u:AppUser)=>void}) {
         {passErr&&<div style={{fontSize:11,color:T.accentRed,marginTop:2}}>Wrong password</div>}
       </>:<>
       <div style={{display:'flex',gap:6,width:250}}>
-        <input value={simpleName} onChange={e=>setSimpleName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')handleSimple();}} placeholder="Your name" style={{flex:1,height:36,borderRadius:6,border:`1px solid ${T.borderInput}`,background:T.bgInput,color:T.textBright,fontSize:14,padding:'0 10px',outline:'none'}}/>
-        <button onClick={handleSimple} disabled={simpleName.trim().length<2||!/^[\p{L}\s\-'.]+$/u.test(simpleName.trim())} style={{height:36,borderRadius:6,border:'none',background:simpleName.trim().length>=2?T.accentBlue:T.bgInput,color:simpleName.trim().length>=2?T.white:T.textMuted,fontSize:13,fontWeight:600,padding:'0 16px',cursor:simpleName.trim().length>=2?'pointer':'default'}}>Enter</button>
+        <input value={simpleName} onChange={e=>{setSimpleName(e.target.value);setLoginErr('');}} onKeyDown={e=>{if(e.key==='Enter')handleSimple();}} placeholder="Your name" style={{flex:1,height:36,borderRadius:6,border:`1px solid ${loginErr?T.accentRed:T.borderInput}`,background:T.bgInput,color:T.textBright,fontSize:14,padding:'0 10px',outline:'none'}}/>
+        <button onClick={handleSimple} disabled={loading||simpleName.trim().length<2||!/^[\p{L}\s\-'.]+$/u.test(simpleName.trim())} style={{height:36,borderRadius:6,border:'none',background:simpleName.trim().length>=2?T.accentBlue:T.bgInput,color:simpleName.trim().length>=2?T.white:T.textMuted,fontSize:13,fontWeight:600,padding:'0 16px',cursor:simpleName.trim().length>=2?'pointer':'default'}}>{loading?'...':'Enter'}</button>
       </div>
+      {loginErr&&<div style={{fontSize:11,color:T.accentRed,marginTop:2}}>{loginErr}</div>}
       {!inTg && <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginTop:12}}>
         <div style={{display:'flex',alignItems:'center',gap:8,width:250}}><div style={{flex:1,borderTop:`1px solid ${T.bgInput}`}}/><span style={{fontSize:9,color:T.textMuted,whiteSpace:'nowrap'}}>or connect for notifications</span><div style={{flex:1,borderTop:`1px solid ${T.bgInput}`}}/></div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
