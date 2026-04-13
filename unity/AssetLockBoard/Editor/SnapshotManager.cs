@@ -188,6 +188,8 @@ namespace AssetLockBoard.Editor
             _get("snapshots.json", json =>
             {
                 Snapshots.Clear();
+                foreach (var tex in _thumbCache.Values)
+                    if (tex != null) UnityEngine.Object.DestroyImmediate(tex);
                 _thumbCache.Clear();
                 if (string.IsNullOrEmpty(json) || json.Trim() == "null") return;
                 foreach (var (key, val) in AssetLockWindow.ExtractObjects(json))
