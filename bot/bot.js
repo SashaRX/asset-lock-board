@@ -6,8 +6,7 @@ require('dotenv').config();
 // Dual mode: Mini App + Inline Board in group chats
 
 const { Telegraf } = require('telegraf');
-const { initializeApp } = require('firebase/app');
-const { getDatabase, ref, onValue, set, remove, get, update: fbUpdate } = require('firebase/database');
+const FirebaseRest = require('./firebase-rest');
 const fs = require('fs');
 const path = require('path');
 
@@ -17,12 +16,7 @@ const FIREBASE_DB_URL = process.env.FIREBASE_DB_URL || 'https://asset-lock-board
 
 if (!BOT_TOKEN) { console.error('BOT_TOKEN not set'); process.exit(1); }
 
-const firebaseApp = initializeApp({
-  databaseURL: FIREBASE_DB_URL,
-  apiKey: 'AIzaSyBxxpfnWqPgAmRgTaM7y0LmeQMaBhsQ38U',
-  projectId: 'asset-lock-board',
-});
-const db = getDatabase(firebaseApp);
+const db = new FirebaseRest(FIREBASE_DB_URL);
 const bot = new Telegraf(BOT_TOKEN);
 
 // Custom emoji icons
@@ -77,7 +71,7 @@ async function syncUserProfile(ctx) {
     }
   } catch (e) { console.error('Photo error:', e.message); }
   // Use update to preserve isAdmin, notifyPref, createdAt etc.
-  await fbUpdate(ref(db, `users/${u.id}`), profile);
+  await db.update(`users/${u.id}`, profile);
 }
 
 
@@ -115,7 +109,7 @@ function boardKeyboard() {
 }
 
 async function getFiles() {
-  return (await get(ref(db, 'files'))).val() || {};
+  return await db.get('files') || {};
 }
 
 async function updateBoard(chatId) {
@@ -146,8 +140,7 @@ bot.command('start', async (ctx) => {
     const newId = ctx.from.id;
     if (oldId && oldId !== newId) {
       try {
-        const filesSnap = await get(ref(db, 'files'));
-        const files = filesSnap.val() || {};
+        const files = await db.get('files') || {};
         const ups = {};
         for (const [k, f] of Object.entries(files)) {
           if (f.ownerId === oldId) {
@@ -161,11 +154,10 @@ bot.command('start', async (ctx) => {
             ups[`files/${k}/watchers/${oldId}`] = null;
           }
         }
-        const oldSnap = await get(ref(db, `users/${oldId}`));
-        const oldProfile = oldSnap.val() || {};
+        const oldProfile = await db.get(`users/${oldId}`) || {};
         ups[`users/${newId}`] = { ...oldProfile, name: userName(ctx.from), username: ctx.from.username || '', color: colorForId(newId) };
         ups[`users/${oldId}`] = null;
-        await fbUpdate(ref(db), ups);
+        await db.update('', ups);
         console.log(`Linked: ${oldId} -> ${newId} (${userName(ctx.from)})`);
         return ctx.reply('\u2705 Account linked! You can close this and return to the app.');
       } catch (e) {
@@ -199,7 +191,7 @@ bot.command('board', async (ctx) => {
     parse_mode: 'Markdown', reply_markup: boardKeyboard(),
   });
   boards[ctx.chat.id] = msg.message_id;
-  await set(ref(db, `boards/${ctx.chat.id}`), msg.message_id);
+  await db.set(`boards/${ctx.chat.id}`, msg.message_id);
 });
 
 bot.command('lock', async (ctx) => {
@@ -234,20 +226,19 @@ function userName(from) {
 async function doLock(ctx, filename) {
   const k = toKey(filename);
   const uid = ctx.from.id;
-  const snap = await get(ref(db, `files/${k}`));
-  const existing = snap.val();
+  const existing = await db.get(`files/${k}`);
 
   if (existing) {
     const who = existing.ownerId === uid ? 'you' : existing.ownerName;
     return ctx.reply(`\u{1F512} \`${filename}\` already locked by *${who}*`, { parse_mode: 'Markdown' });
   }
 
-  await set(ref(db, `files/${k}`), {
+  await db.set(`files/${k}`, {
     name: filename, ownerId: uid, ownerName: userName(ctx.from),
     ownerUsername: ctx.from.username || '',
     ownerColor: colorForId(uid), watchers: {}, since: Date.now(),
   });
-  await set(ref(db, `saved/${k}`), filename);
+  await db.set(`saved/${k}`, filename);
   delete waitingLock[uid];
   await ctx.reply(`\u2705 \`${filename}\` locked`, { parse_mode: 'Markdown' });
   await updateAllBoards();
@@ -256,13 +247,12 @@ async function doLock(ctx, filename) {
 async function doFree(ctx, filename) {
   const k = toKey(filename);
   const uid = ctx.from.id;
-  const snap = await get(ref(db, `files/${k}`));
-  const f = snap.val();
+  const f = await db.get(`files/${k}`);
   if (!f) return ctx.reply(`\`${filename}\` not locked`, { parse_mode: 'Markdown' });
   if (f.ownerId !== uid) return ctx.reply(`\`${filename}\` locked by *${f.ownerName}*, not you`, { parse_mode: 'Markdown' });
 
   await notifyWatchers(f);
-  await remove(ref(db, `files/${k}`));
+  await db.remove(`files/${k}`);
   await ctx.reply(`\u{1F513} \`${filename}\` freed`, { parse_mode: 'Markdown' });
   await updateAllBoards();
 }
@@ -321,11 +311,10 @@ bot.on('callback_query', async (ctx) => {
 
   if (data.startsWith('fr:')) {
     const k = data.substring(3);
-    const snap = await get(ref(db, `files/${k}`));
-    const f = snap.val();
+    const f = await db.get(`files/${k}`);
     if (f && f.ownerId === ctx.from.id) {
       await notifyWatchers(f);
-      await remove(ref(db, `files/${k}`));
+      await db.remove(`files/${k}`);
       await ctx.answerCbQuery(`${f.name} freed`);
       try { await ctx.deleteMessage(); } catch {}
       await updateAllBoards();
@@ -367,8 +356,7 @@ function queueNotify(userId, text) {
 async function flushNotify() {
   for (const [userId, lines] of Object.entries(notifyQueue)) {
     try {
-      const snap = await get(ref(db, `users/${userId}/notifyPref`));
-      const pref = snap.val() || 'both';
+      const pref = await db.get(`users/${userId}/notifyPref`) || 'both';
       if (pref === 'browser' || pref === 'off') continue;
     } catch {}
     bot.telegram.sendMessage(userId, lines.join('\n'), { parse_mode: 'HTML' }).catch(() => {});
@@ -380,8 +368,8 @@ function shortName(file) {
   return file.ownerUsername ? '@' + file.ownerUsername : file.ownerName;
 }
 
-onValue(ref(db, 'files'), async (snap) => {
-  const current = snap.val() || {};
+db.listen('files', async (current) => {
+  current = current || {};
 
   // Freed files -> notify watchers
   for (const [key, prev] of Object.entries(previousFiles)) {
@@ -422,8 +410,7 @@ onValue(ref(db, 'files'), async (snap) => {
 // --- Load boards on start ---
 
 async function loadBoards() {
-  const snap = await get(ref(db, 'boards'));
-  const saved = snap.val() || {};
+  const saved = await db.get('boards') || {};
   Object.assign(boards, saved);
   console.log(`Loaded ${Object.keys(saved).length} board(s)`);
 }
