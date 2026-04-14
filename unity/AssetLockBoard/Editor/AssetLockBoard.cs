@@ -49,6 +49,12 @@ namespace AssetLockBoard.Editor
         string _lockInput = "";
         bool _showLockInput;
 
+        // --- Snapshots ---
+        SnapshotManager _snapMgr;
+        bool _showSnapshots = true;
+        string _snapName = "";
+        bool _showSnapInput;
+
         // Request queue (one at a time)
         readonly Queue<(UnityWebRequest req, Action<string> cb)> _queue = new();
         UnityWebRequest _active;
@@ -66,6 +72,7 @@ namespace AssetLockBoard.Editor
             EditorApplication.update += Tick;
             Selection.selectionChanged += Repaint;
             _nextPoll = 0;
+            _snapMgr = new SnapshotManager(Get, Put, Delete, () => UserId, () => UserName);
         }
 
         void OnDisable()
@@ -133,7 +140,11 @@ namespace AssetLockBoard.Editor
         }
 
         // --- Firebase actions ---
-        void Refresh() => Get("files.json", json => { Files = ParseFiles(json); Repaint(); });
+        void Refresh()
+        {
+            Get("files.json", json => { Files = ParseFiles(json); Repaint(); });
+            _snapMgr?.RefreshFromFirebase();
+        }
 
         internal static string LockMode = "busy"; // "busy" or "lock"
 
@@ -166,7 +177,7 @@ namespace AssetLockBoard.Editor
             Delete($"files/{key}.json", _ => Refresh());
         }
 
-        static string Esc(string s) => s?.Replace("\\", "\\\\").Replace("\"", "\\\"") ?? "";
+        internal static string Esc(string s) => s?.Replace("\\", "\\\\").Replace("\"", "\\\"") ?? "";
 
         // --- Setup: fetch user by @username ---
         void LookupUser(string username)
@@ -243,6 +254,8 @@ namespace AssetLockBoard.Editor
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("\u21BB", EditorStyles.toolbarButton, GUILayout.Width(24))) Refresh();
             if (GUILayout.Button("+", EditorStyles.toolbarButton, GUILayout.Width(24))) _showLockInput = !_showLockInput;
+            if (GUILayout.Button("Snap", EditorStyles.toolbarButton, GUILayout.Width(38))) _showSnapInput = !_showSnapInput;
+            if (GUILayout.Button("Paste", EditorStyles.toolbarButton, GUILayout.Width(38))) _snapMgr?.PasteAndLoad();
             if (GUILayout.Button("\u2699", EditorStyles.toolbarButton, GUILayout.Width(24)))
             { UserId = 0; UserName = ""; UserUsername = ""; }
             EditorGUILayout.EndHorizontal();
@@ -307,6 +320,23 @@ namespace AssetLockBoard.Editor
                 { LockMode = "busy"; DoLock(_lockInput.Trim()); _lockInput = ""; _showLockInput = false; }
                 if (GUILayout.Button("Lock", EditorStyles.miniButtonRight, GUILayout.Width(36)))
                 { LockMode = "lock"; DoLock(_lockInput.Trim()); _lockInput = ""; _showLockInput = false; }
+                EditorGUI.EndDisabledGroup();
+                EditorGUILayout.EndHorizontal();
+            }
+
+            // --- Snapshot capture input ---
+            if (_showSnapInput)
+            {
+                EditorGUILayout.BeginHorizontal();
+                _snapName = EditorGUILayout.TextField(_snapName);
+                EditorGUI.BeginDisabledGroup(string.IsNullOrWhiteSpace(_snapName));
+                if (GUILayout.Button("Capture", EditorStyles.miniButton, GUILayout.Width(52)))
+                {
+                    var snap = _snapMgr.Capture(_snapName.Trim());
+                    _snapMgr.SaveToFirebase(snap);
+                    _snapName = "";
+                    _showSnapInput = false;
+                }
                 EditorGUI.EndDisabledGroup();
                 EditorGUILayout.EndHorizontal();
             }
@@ -381,7 +411,62 @@ namespace AssetLockBoard.Editor
                 GUILayout.Label("No locked files", EditorStyles.centeredGreyMiniLabel);
             }
 
+            DrawSnapshots();
             EditorGUILayout.EndScrollView();
+        }
+
+        void DrawSnapshots()
+        {
+            if (_snapMgr == null || _snapMgr.Snapshots.Count == 0) return;
+
+            GUILayout.Space(8);
+            _showSnapshots = EditorGUILayout.Foldout(_showSnapshots,
+                $"SNAPSHOTS ({_snapMgr.Snapshots.Count})", true);
+
+            if (!_showSnapshots) return;
+
+            foreach (var snap in _snapMgr.Snapshots)
+            {
+                EditorGUILayout.BeginHorizontal(EditorStyles.helpBox, GUILayout.Height(52));
+
+                // Thumbnail
+                var thumb = _snapMgr.GetThumbnail(snap);
+                if (thumb != null)
+                {
+                    var r = GUILayoutUtility.GetRect(48, 27, GUILayout.Width(48), GUILayout.Height(27));
+                    GUI.DrawTexture(r, thumb, ScaleMode.ScaleToFit);
+                }
+                else
+                {
+                    GUILayout.Label("--", GUILayout.Width(48), GUILayout.Height(27));
+                }
+
+                // Info
+                EditorGUILayout.BeginVertical();
+                GUILayout.Label(snap.name, EditorStyles.boldLabel);
+                var sceneName = string.IsNullOrEmpty(snap.scene) ? "" : System.IO.Path.GetFileNameWithoutExtension(snap.scene);
+                GUILayout.Label($"{snap.authorName} \u2022 {sceneName}", EditorStyles.miniLabel);
+                EditorGUILayout.EndVertical();
+
+                GUILayout.FlexibleSpace();
+
+                // Buttons
+                EditorGUILayout.BeginVertical(GUILayout.Width(46));
+                if (GUILayout.Button("Apply", EditorStyles.miniButton, GUILayout.Height(16)))
+                    _snapMgr.Apply(snap);
+                if (snap.authorId == UserId)
+                {
+                    if (GUILayout.Button("Del", EditorStyles.miniButton, GUILayout.Height(16)))
+                        _snapMgr.DeleteFromFirebase(snap.id);
+                }
+                else
+                {
+                    GUILayout.Space(18);
+                }
+                EditorGUILayout.EndVertical();
+
+                EditorGUILayout.EndHorizontal();
+            }
         }
 
         static void PingFile(string filename)
@@ -501,7 +586,7 @@ namespace AssetLockBoard.Editor
             return r;
         }
 
-        static IEnumerable<(string key, string value)> ExtractObjects(string json)
+        internal static IEnumerable<(string key, string value)> ExtractObjects(string json)
         {
             if (string.IsNullOrEmpty(json)) yield break;
             int i = json.IndexOf('{') + 1;

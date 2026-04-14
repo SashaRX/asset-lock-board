@@ -180,7 +180,8 @@ bot.command('start', async (ctx) => {
     '/board \u2014 create board in chat\n' +
     '/lock filename \u2014 lock a file\n' +
     '/free filename \u2014 free a file\n' +
-    '/status \u2014 text status',
+    '/status \u2014 text status\n' +
+    '/snap id \u2014 view snapshot details',
     markup || {}
   );
 });
@@ -215,6 +216,29 @@ bot.command('free', async (ctx) => {
 bot.command('status', async (ctx) => {
   const files = await getFiles();
   ctx.reply(formatBoard(files), { parse_mode: 'Markdown' });
+});
+
+bot.command('snap', async (ctx) => {
+  const id = ctx.message.text.split(' ').slice(1).join(' ').trim();
+  if (!id) return ctx.reply('Usage: /snap {id}');
+
+  const snap = await db.get(`snapshots/${id}`);
+  if (!snap) return ctx.reply(`Snapshot \`${id}\` not found`, { parse_mode: 'Markdown' });
+
+  const sceneName = (snap.scene || '').split('/').pop()?.replace('.unity', '') || 'Unknown';
+  const caption = `<b>${snap.name || 'Snapshot'}</b>\n` +
+                  `by ${snap.authorName}\n` +
+                  `Scene: ${sceneName}\n` +
+                  `ID: <code>${id}</code>\n` +
+                  `Objects: ${(snap.selection || []).join(', ') || 'none'}`;
+
+  const image = await db.get(`snapshot_images/${id}`);
+  if (image) {
+    const imgBuffer = Buffer.from(image, 'base64');
+    await ctx.replyWithPhoto({ source: imgBuffer }, { caption, parse_mode: 'HTML' });
+  } else {
+    await ctx.reply(caption, { parse_mode: 'HTML' });
+  }
 });
 
 // --- Lock / Free ---
@@ -324,6 +348,12 @@ bot.on('callback_query', async (ctx) => {
     return;
   }
 
+  if (data.startsWith('snap_id:')) {
+    const snapId = data.substring(8);
+    await ctx.answerCbQuery(`ID: ${snapId}\nPaste in Unity`, { show_alert: true });
+    return;
+  }
+
   await ctx.answerCbQuery();
 });
 
@@ -405,6 +435,59 @@ db.listen('files', async (current) => {
 
   previousFiles = JSON.parse(JSON.stringify(current));
   await updateAllBoards();
+});
+
+// --- Snapshot watcher ---
+
+let previousSnapshots = {};
+let snapshotBaselineSet = false;
+
+db.listen('snapshots', async (current) => {
+  current = current || {};
+
+  // Skip first event to avoid spamming old snapshots on restart
+  if (!snapshotBaselineSet) {
+    snapshotBaselineSet = true;
+    previousSnapshots = JSON.parse(JSON.stringify(current));
+    return;
+  }
+
+  for (const [id, snap] of Object.entries(current)) {
+    if (!previousSnapshots[id] && snap.authorName) {
+      try {
+        // Image may not be uploaded yet (metadata is saved first) — retry
+        let image = await db.get(`snapshot_images/${id}`);
+        if (!image) {
+          await new Promise(r => setTimeout(r, 2000));
+          image = await db.get(`snapshot_images/${id}`);
+        }
+
+        const sceneName = (snap.scene || '').split('/').pop()?.replace('.unity', '') || 'Unknown';
+        const caption = `<b>${snap.name || 'Snapshot'}</b>\n` +
+                        `by ${snap.authorName} \u2022 ${sceneName}\n` +
+                        `ID: <code>${id}</code>`;
+
+        if (image) {
+          const imgBuffer = Buffer.from(image, 'base64');
+          for (const chatId of Object.keys(boards)) {
+            await bot.telegram.sendPhoto(chatId, { source: imgBuffer }, {
+              caption,
+              parse_mode: 'HTML',
+              reply_markup: {
+                inline_keyboard: [[
+                  { text: 'Copy ID', callback_data: `snap_id:${id.substring(0, 55)}` }
+                ]]
+              }
+            }).catch(e => console.error(`Snap photo to ${chatId}:`, e.message));
+          }
+        }
+      } catch (e) {
+        console.error('Snapshot notify error:', e.message);
+      }
+    }
+  }
+
+  previousSnapshots = JSON.parse(JSON.stringify(current));
 });
 
 // --- Load boards on start ---
